@@ -2,13 +2,14 @@ from setuptools import setup, find_packages
 
 setup(
     name="elabjournal",
-    version="0.0.1",
+    version="0.0.3",
     author="Matthijs Brouwer",
+    url="https://github.com/matthijsbrouwer/elabjournal-python",
     packages=find_packages(),
     license="Apache License 2.0",
     long_description=open("README.md").read(),
     install_requires=[
-        "requests >= 2.21.0",
+        "requests >= 2.18.4",
         "pandas",
         "keyring",
         "IPython",

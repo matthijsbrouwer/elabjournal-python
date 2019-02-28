@@ -3,7 +3,7 @@ import json
 import xlrd
 import pandas as pd
 import matplotlib
-import PIL
+from PIL import Image, PngImagePlugin
 from io import BytesIO
 
 
@@ -52,7 +52,7 @@ class section:
         elif self.__sectionType=="CANVAS":
             rp = self.__api.request("/api/v1/experiments/sections/"+str(self.__expJournalID)+"/canvas", "get", {}, stream=True)
             stream = BytesIO(rp)
-            return(PIL.Image.open(stream))                                                             
+            return(Image.open(stream))                                                             
         elif self.__sectionType=="EXCEL":
             rp = self.__api.request("/api/v1/experiments/sections/"+str(self.__expJournalID)+"/excel", "get", {}, stream=True)
             wb = xlrd.open_workbook(file_contents=rp)
@@ -78,7 +78,7 @@ class section:
                 figfile = BytesIO()
                 data.savefig(figfile, format="png", dpi=dpi, bbox_inches="tight")
                 rp = self.__api.request(location, "put", figfile.getvalue(), headers={"Content-Type": "image/png"}) 
-            elif type(data) == PIL.PngImagePlugin.PngImageFile:
+            elif type(data) == PngImagePlugin.PngImageFile:
                 with BytesIO() as output:
                     data.save(output, format="png")
                     contents = output.getvalue()
