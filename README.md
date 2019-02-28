@@ -1,4 +1,4 @@
-## Python package textexploration
+## Python package elabjournal
 
 Source Python package [elabjournal](https://pypi.org/project/elabjournal/)
 
