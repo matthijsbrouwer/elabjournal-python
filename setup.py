@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="elabjournal",
-    version="0.0.3",
+    version="0.0.5",
     author="Matthijs Brouwer",
     url="https://github.com/matthijsbrouwer/elabjournal-python",
     packages=find_packages(),
