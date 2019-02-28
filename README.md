@@ -1,12 +1,12 @@
 ## Python package textexploration
 
-Source Python package [textexploration](https://pypi.org/project/textexploration/)
+Source Python package [elabjournal](https://pypi.org/project/elabjournal/)
 
 Install with
 
 ```bash
-pip install textexploration
+pip install elabjournal
 ```
 
-See [jupyter](https://github.com/textexploration/jupyter-textexploration) notebooks for
+See [jupyter](https://github.com/matthijsbrouwer/jupyter-elabjournal) notebooks for
 a demonstration of functionality.
