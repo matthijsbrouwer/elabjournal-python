@@ -1,6 +1,7 @@
 from .pager import *
 from .section import *
 import pandas as pd
+import matplotlib
 
 class experiment:
 
@@ -49,6 +50,12 @@ class experiment:
                 sectionHeader = title
             if type(data) == pd.DataFrame:
                 sectionType = "DATATABLE"
+                sectionData = data
+            elif type(data) == matplotlib.figure.Figure:    
+                sectionType = "CANVAS"
+                sectionData = data
+            elif type(data) == PngImagePlugin.PngImageFile:   
+                sectionType = "CANVAS"
                 sectionData = data
             else:
                 raise Exception("no (valid) section data")

@@ -49,6 +49,20 @@ class api:
           check_and_set_key(key, True, False)       
         
     
+    def samples(self, search=None):
+        request = {}
+        if not(search==None):
+            request["search"] = search
+        return(pager(self, "Samples", "/api/v1/samples", request, "sampleID", None, 5))
+    
+    def sample_types(self, name=None, archived=None):
+        request = {}
+        if not(name==None):
+            request["name"] = name
+        if not(archived==None):
+            request["archived"] = archived
+        return(pager(self, "SampleTypes", "/api/v1/sampleTypes", request, "sampleTypeID", None, 5))
+    
     def groups(self, search=None):
         request = {}
         if not(search==None):
@@ -84,9 +98,15 @@ class api:
         rp = self.request("/api/v1/experiments", "get", request)
         #check and get
         if not(rp==None) & (type(rp) == dict):
-            if ("totalRecords" in rp.keys()) & (rp["totalRecords"]==1):
+            if ("totalRecords" in rp.keys()) & (rp["totalRecords"]>=1):
                 if "data" in rp.keys():
-                    return(experiment(self, rp["data"][0]))
+                    if(rp["totalRecords"]==1):
+                        return(experiment(self, rp["data"][0]))
+                    else:
+                        for dataItem in rp["data"]:
+                            if(dataItem["experimentID"]==experiment_id):
+                                return(experiment(self, dataItem))
+                        return(None)               
                 else:   
                     return(None)
             else:
@@ -127,7 +147,7 @@ class api:
                 response = requests.get(self.__url+location, params=data, timeout=self.__timeout, headers=request_headers, stream=stream)
             elif method=="post":    
                 if type(request) == str:
-                    headers.update({"Content-Type": "application/json"})
+                    request_headers.update({"Content-Type": "application/json"})
                     data = request
                 else:
                     raise Exception("unsupported type of request") 

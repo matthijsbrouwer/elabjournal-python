@@ -2,6 +2,7 @@ import pandas as pd
 import math
 import ipywidgets as widgets
 from IPython.display import display, clear_output
+from pandas.io.json import json_normalize
 
 
 class pager:
@@ -59,17 +60,17 @@ class pager:
             self.__pages = math.ceil(self.__totalRecords/self.__maxRecords)  
             if "data" in rp.keys():                        
                 self.__page = page
-                self.__data = pd.DataFrame(rp["data"])
+                self.__data = pd.DataFrame(json_normalize(rp["data"]))
                 if len(self.__data)>0:
                     self.__data = self.__data.set_index(self.__index)                
             else:
                 raise Exception("unexpected response, no data")                    
         else:
-            raise Exception("unexpected response, no dict") 
+            raise Exception("unexpected response, no dict")         
     
     
     #todo: reset button
-    def show(self):                        
+    def show(self):   
         #data
         data = widgets.Output()                              
         #paging
