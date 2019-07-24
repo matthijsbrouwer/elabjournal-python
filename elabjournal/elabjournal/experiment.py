@@ -6,7 +6,7 @@ import matplotlib
 class experiment:
 
     def __init__(self, api, data):        
-        if (not(data==None) & (type(data) == dict) & 
+        if ((data is not None) & (type(data) == dict) & 
             ("experimentID" in data.keys()) &
             ("name" in data.keys())
            ):

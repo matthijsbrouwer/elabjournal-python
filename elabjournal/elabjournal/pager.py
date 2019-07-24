@@ -1,13 +1,37 @@
 import pandas as pd
 import math
 import ipywidgets as widgets
+import warnings
 from IPython.display import display, clear_output
 from pandas.io.json import json_normalize
 
 
 class pager:
 
-    def __init__(self, api, title, location, request, index, sort, records):        
+    def __init__(self, api, title, location, request, index, sort, records, item_handler=None):        
+        """
+        Internal use only: initialize pager object: general object to browse items
+        
+        Parameters
+        ----------
+        api: api
+            The api object
+        title: str
+            Title for the set of items
+        location: str
+            Prefix for REST api call url
+        request: dict
+            Parameters to add to REST api call url
+        index: str / list
+            Fields from response to be used as index.
+            Also used as parameters for optional item_handler.
+        sort: str
+            Field used to sort response
+        records: int
+            Number of items on each page when browsing the response.
+        item_handler: method, optional
+            Method to be used to get an item.            
+        """
         #store
         self.__api = api
         self.__title = title
@@ -16,11 +40,21 @@ class pager:
         self.__index = index
         self.__sort = sort
         self.__records = records
+        self.__item_handler = item_handler
+        self.__page = 0
         self._reset()
         #get first page        
-        self._set_page(self.__page)  
-        
+        self._set_page(self.__page, records) 
+        #define first
+        if len(self.__data)>0:
+            self.__first = self.__data.index.values[0]
+        else:
+            self.__first = None     
+            
     def _reset(self):
+        """
+        Internal use only: reset pager object
+        """ 
         self.__page = 0
         self.__maxRecords = 0
         self.__totalRecords = 0
@@ -28,17 +62,23 @@ class pager:
         self.__data = None
         
     def __repr__(self):
+        """
+        Internal use only: description pager object
+        """ 
         description = self.__title
         if self.__pages>1:
-            return(description+" ("+str(self.__pages)+" pages)")
+            return(description+" ("+str(self.__totalRecords)+"x)")
         else:
             return(description)
         
-    def _set_page(self, page):
+    def _set_page(self, page, records):
+        """
+        Internal use only: change page
+        """ 
         #define request
         request = self.__request
         request["$page"] = page
-        request["$records"] = self.__records
+        request["$records"] = records
         request["$sort"] = self.__sort
         rp = self.__api.request(self.__location,"get",request)
         #check and get
@@ -62,17 +102,187 @@ class pager:
                 self.__page = page
                 self.__data = pd.DataFrame(json_normalize(rp["data"]))
                 if len(self.__data)>0:
-                    self.__data = self.__data.set_index(self.__index)                
+                    self.__data = self._filter_page(self.__data.set_index(self.__index))                
             else:
                 raise Exception("unexpected response, no data")                    
         else:
-            raise Exception("unexpected response, no dict")         
+            raise Exception("unexpected response, no dict")  
+            
+    def _filter_page(self, data):
+        """
+        Internal use only: filter page (flatten specific json)
+        """ 
+        dropList = set()
+        numberTypes = {}
+        for key in data.index:
+            value = data.loc[key]
+            for subkey in value.index:
+                subvalue = value.loc[subkey]
+                if isinstance(subvalue, list):
+                    couldFindReplace=False
+                    replace = {}
+                    for item in subvalue:
+                        if isinstance(item,dict):
+                            couldFindReplace=True
+                            if "key" in item:
+                                for itemKey in item:
+                                    if not(itemKey=="key"):
+                                        newItemKey = str(item["key"])+"."+str(itemKey)
+                                        if newItemKey in replace:
+                                            replace[newItemKey].append(item[itemKey])
+                                        else:
+                                            replace[newItemKey] = [item[itemKey]]                                        
+                            else:
+                                for itemKey in item:
+                                    if itemKey in replace:
+                                        replace[itemKey].append(item[itemKey])
+                                    else:
+                                        replace[itemKey] = [item[itemKey]]                                                                
+                    for replaceKey in replace.keys():
+                        replaceValue = replace[replaceKey]
+                        if len(replaceValue)==1:
+                            replace[replaceKey] = replaceValue[0]
+                        data.loc[key,str(subkey)+"."+str(replaceKey)] = str(replace[replaceKey])
+                    if couldFindReplace:
+                        data.loc[key,str(subkey)+".number"] = str(len(subvalue)) 
+                        numberTypes[str(subkey)+".number"] = int
+                        dropList.add(subkey)                        
+        for numberType in numberTypes:
+            data[numberType] = data[numberType].fillna(0).astype(numberTypes[numberType])        
+        if len(dropList)>0:                       
+            data = data.drop(columns=list(dropList))
+        return(data)                    
+                   
     
+    def first(self, single=False):  
+        """
+        Get the first item (if exists), but raise an exception if `single`
+        is set to True and the object describes multiple items.
+        
+        If an `item_handler` is defined, this will be
+        used to return an object. Otherwise the index for the first
+        item will be returned (usually the ID).
+        """ 
+        if not((self.__item_handler is None) | (self.__first==None)):
+            if single & (self.__totalRecords>1):
+                raise Exception("multiple entries found ("+str(self.__totalRecords)+")")
+            if isinstance(self.__first, tuple):
+                return self.__item_handler(*self.__first)
+            else:         
+                return self.__item_handler(self.__first)
+        else:    
+            return(self.__first)
+            
+    def number(self):
+        """
+        Get the number of items.
+        """   
+        return(self.__totalRecords)   
+            
+    def fields(self):
+        """
+        Get the available fields.
+        """   
+        return(self.__data.columns.values.tolist())   
+            
+    def get(self, *args):
+        """
+        Get the item for the provided index entry.
+        Only available if an `item_handler` is defined.
+        This will also return items that are not contained within the scope of this object!
+        """   
+        if self.__item_handler is None:
+            raise Exception("method not available")
+        else:
+           return self.__item_handler(*args)    
+            
+    def all(self, fields=None, maximum=None):
+        """
+        Return all items in a single DataFrame.
+        
+        Parameters
+        ----------
+        fields: list
+            A list of fields to limit the number of columns in the result
+        """         
+        if maximum is None:
+            records =  100
+        else:
+            records = min(100, maximum)  
+        recordCounter = 0                 
+        page = 0
+        dataSets = []
+        while True:
+            #define request
+            request = self.__request
+            request["$page"] = page
+            request["$records"] = records
+            request["$sort"] = self.__sort
+            rp = self.__api.request(self.__location,"get",request)
+            if rp==None:
+                return None;
+            elif type(rp) == dict:
+                if "maxRecords" in rp.keys():
+                    maxRecords = rp["maxRecords"]
+                else:
+                    raise Exception("unexpected response, no maxRecords")
+                if "totalRecords" in rp.keys():
+                    totalRecords = rp["totalRecords"]
+                else:
+                    raise Exception("unexpected response, no totalRecords")    
+                if "currentPage" in rp.keys():
+                    page = rp["currentPage"]
+                else:
+                    raise Exception("unexpected response, no currentPage")
+                pages = math.ceil(totalRecords/maxRecords)  
+            if "data" in rp.keys():                        
+                data = pd.DataFrame(json_normalize(rp["data"]))                
+                #only if data
+                if len(data)>0:
+                    data = data.set_index(self.__index) 
+                    data = self._filter_page(data)
+                    #filter columns
+                    if not(fields==None):
+                        intersectList = [x for x in fields if x in data.columns.values]
+                        dropList = [x for x in data.columns.values if x not in intersectList]
+                        data = data.drop(columns=dropList)[intersectList]
+                    if maximum is None:    
+                        dataSets.append(data)
+                        recordCounter += len(data)
+                    else:
+                        if (len(data)+recordCounter) <= maximum:
+                            dataSets.append(data)
+                            recordCounter += len(data)
+                        else:
+                            dataSets.append(data.head(maximum-(len(data)+recordCounter)))
+                            recordCounter += maximum-(len(data)+recordCounter)
+                            break                                  
+                else:
+                    break                   
+            else:
+                raise Exception("unexpected response, no data") 
+            if recordCounter>=totalRecords:
+                break    
+            page+=1
+        return pd.concat(dataSets)       
+                                    
     
-    #todo: reset button
-    def show(self):   
+    def show(self, fields=None, records=None):   
+        """
+        Create a browseable representation of the items.
+        
+        Parameters
+        ----------
+        fields: list, optional
+            A list of fields to limit the number of columns in the result
+        records: integer, optional
+            The number of items to show on each page when browsing the result
+        """            
         #data
-        data = widgets.Output()                              
+        data = widgets.Output()  
+        if records is None:
+            records = self.__records  
+        self._set_page(self.__page, records)                               
         #paging
         box_layout = widgets.Layout(
             display='flex', flex_flow='row', justify_content='space-between', 
@@ -114,26 +324,46 @@ class pager:
                 set_header_and_buttons(self.__page-1) 
                 button_previous.disabled=True
                 button_next.disabled=True
-                self._set_page(self.__page-1) 
+                self._set_page(self.__page-1, records) 
                 set_header_and_buttons(self.__page) 
                 with data:
                     clear_output();
-                    display(self.__data) 
+                    if not(fields==None):
+                        rawData = self._filter_page(self.__data)
+                        intersectList = [x for x in fields if x in rawData.columns.values]
+                        dropList = [x for x in rawData.columns.values if x not in intersectList]
+                        display(rawData.drop(columns=dropList)[intersectList])
+                    else:    
+                        display(self._filter_page(self.__data)) 
                 
         def on_button_next(b):
             if self.__page<(self.__pages-1):
                 set_header_and_buttons(self.__page+1) 
                 button_previous.disabled=True
                 button_next.disabled=True
-                self._set_page(self.__page+1) 
+                self._set_page(self.__page+1, records) 
                 set_header_and_buttons(self.__page) 
                 with data:
                     clear_output();
-                    display(self.__data) 
+                    if not(fields==None):
+                        rawData = self._filter_page(self.__data)
+                        intersectList = [x for x in fields if x in rawData.columns.values]
+                        dropList = [x for x in rawData.columns.values if x not in intersectList]
+                        display(rawData.drop(columns=dropList)[intersectList])
+                    else:    
+                        display(self._filter_page(self.__data)) 
+                
                 
         set_header_and_buttons(self.__page)    
         with data:
-            display(self.__data)  
+            if not(fields==None):
+                rawData = self._filter_page(self.__data)
+                intersectList = [x for x in fields if x in rawData.columns.values]
+                dropList = [x for x in rawData.columns.values if x not in intersectList]
+                display(rawData.drop(columns=dropList)[intersectList])
+            else:    
+                display(self._filter_page(self.__data)) 
+                  
         button_previous.on_click(on_button_previous)
         button_next.on_click(on_button_next)
         
