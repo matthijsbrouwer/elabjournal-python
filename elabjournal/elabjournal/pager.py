@@ -8,7 +8,7 @@ from pandas.io.json import json_normalize
 
 class pager:
 
-    def __init__(self, api, title, location, request, index, sort, records, item_handler=None):        
+    def __init__(self, api, title, location, request, index, records, item_handler=None):        
         """
         Internal use only: initialize pager object: general object to browse items
         
@@ -25,8 +25,6 @@ class pager:
         index: str / list
             Fields from response to be used as index.
             Also used as parameters for optional item_handler.
-        sort: str
-            Field used to sort response
         records: int
             Number of items on each page when browsing the response.
         item_handler: method, optional
@@ -38,7 +36,6 @@ class pager:
         self.__location = location
         self.__request = request
         self.__index = index
-        self.__sort = sort
         self.__records = records
         self.__item_handler = item_handler
         self.__page = 0
@@ -66,10 +63,7 @@ class pager:
         Internal use only: description pager object
         """ 
         description = self.__title
-        if self.__pages>1:
-            return(description+" ("+str(self.__totalRecords)+"x)")
-        else:
-            return(description)
+        return(description+" ("+str(self.__totalRecords)+"x)")        
         
     def _set_page(self, page, records):
         """
@@ -79,7 +73,6 @@ class pager:
         request = self.__request
         request["$page"] = page
         request["$records"] = records
-        request["$sort"] = self.__sort
         rp = self.__api.request(self.__location,"get",request)
         #check and get
         if rp==None:
@@ -204,6 +197,8 @@ class pager:
         ----------
         fields: list
             A list of fields to limit the number of columns in the result
+        maximum: int
+            A maximum to limit the number of rows in the result            
         """         
         if maximum is None:
             records =  100
@@ -217,7 +212,6 @@ class pager:
             request = self.__request
             request["$page"] = page
             request["$records"] = records
-            request["$sort"] = self.__sort
             rp = self.__api.request(self.__location,"get",request)
             if rp==None:
                 return None;
@@ -264,10 +258,10 @@ class pager:
             if recordCounter>=totalRecords:
                 break    
             page+=1
-        return pd.concat(dataSets)       
+        return pd.concat(dataSets, sort=False)       
                                     
     
-    def show(self, fields=None, records=None):   
+    def show(self, fields=None, size=None):   
         """
         Create a browseable representation of the items.
         
@@ -275,14 +269,14 @@ class pager:
         ----------
         fields: list, optional
             A list of fields to limit the number of columns in the result
-        records: integer, optional
+        size: integer, optional
             The number of items to show on each page when browsing the result
         """            
         #data
         data = widgets.Output()  
-        if records is None:
-            records = self.__records  
-        self._set_page(self.__page, records)                               
+        if size is None:
+            size = self.__records  
+        self._set_page(self.__page, size)                               
         #paging
         box_layout = widgets.Layout(
             display='flex', flex_flow='row', justify_content='space-between', 
@@ -324,7 +318,7 @@ class pager:
                 set_header_and_buttons(self.__page-1) 
                 button_previous.disabled=True
                 button_next.disabled=True
-                self._set_page(self.__page-1, records) 
+                self._set_page(self.__page-1, size) 
                 set_header_and_buttons(self.__page) 
                 with data:
                     clear_output();
@@ -341,7 +335,7 @@ class pager:
                 set_header_and_buttons(self.__page+1) 
                 button_previous.disabled=True
                 button_next.disabled=True
-                self._set_page(self.__page+1, records) 
+                self._set_page(self.__page+1, size) 
                 set_header_and_buttons(self.__page) 
                 with data:
                     clear_output();

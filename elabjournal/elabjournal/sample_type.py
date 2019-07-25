@@ -1,4 +1,3 @@
-from .pager import *
 import json
 import pandas as pd
 
@@ -33,6 +32,9 @@ class sample_type:
         return(self.__sampleTypeID)    
         
     def data(self):
+        """
+        Get the data describing the sample type.
+        """
         return(self.__data)   
         
     def metas(self):

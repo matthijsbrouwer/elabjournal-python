@@ -1,4 +1,3 @@
-from .pager import *
 from .sample_type import *
 import json
 import pandas as pd
@@ -7,7 +6,7 @@ class sample:
 
     def __init__(self, api, data):  
         """
-        Internal use only: initialize sample
+        Internal use only: initialize sample object
         """
         if ((data is not None) & (type(data) == dict) & 
             ("sampleID" in data.keys()) & 
@@ -45,7 +44,16 @@ class sample:
         """
         Get the id of the sample.
         """
-        return(self.__sampleTypeID)
+        return(self.__sampleID)
+        
+    def barcode(self):
+        """
+        Get the barcode of the sample.
+        """
+        if "barcode" in self.__data:
+            barcode = self.__data["barcode"]
+            return(barcode)
+        return None
         
     def sample_type(self):
         """
@@ -57,7 +65,9 @@ class sample:
         """
         Get the sampleSerie of the sample as an object.
         """
-        return self.__api.sample_type(self.__sampleTypeID)        
+        if "seriesID" in self.__data:
+            return self.__api.sample_serie(self.__data["seriesID"]) 
+        return None               
         
     def data(self):
         """

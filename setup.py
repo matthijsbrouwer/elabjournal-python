@@ -1,8 +1,10 @@
 from setuptools import setup, find_packages
 
+exec(open("elabjournal/_version.py").read())
+
 setup(
     name="elabjournal",
-    version="0.0.6",
+    version=__version__,
     author="Matthijs Brouwer",
     url="https://github.com/matthijsbrouwer/elabjournal-python",
     packages=find_packages(),

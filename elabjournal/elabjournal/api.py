@@ -2,16 +2,22 @@ from .pager import *
 from .experiment import *
 from .section import *
 from .group import *
+from .project import *
 from .sample_type import *
 from .sample_type_meta import *
 from .sample import *
 from .sample_meta import *
 from .sample_serie import *
+from .storage import *
+from .study import *
+from .. import _version
 
 import requests
 import json
 import keyring
 import numbers
+import urllib.parse
+import pkg_resources
 
 def reset_key():
     keyring.delete_password("elabjournal-python", "apikey")   
@@ -26,6 +32,7 @@ class api:
         self.__timeout = 180
         self.__url = "https://www.elabjournal.com"
         self.__user = None
+        self.__version__ = _version.__version__
         
         def check_and_set_key(key, throw_error, store_valid_key):
             if key==None:            
@@ -36,10 +43,10 @@ class api:
                     if not(rp==None) & ("user" in rp.keys()):
                         self.__key = key
                         self.__user = rp["user"]
-                        welcomeText = "Welcome "+rp["user"]["firstName"]+" "+rp["user"]["lastName"]                        
-                        group = self.group_active()
+                        welcomeText = "Welcome "+rp["user"]["firstName"]+" "+rp["user"]["lastName"] + "\nPackage version '"+str(self.__version__)+"'"                     
+                        group = self.group()
                         if group is not None:
-                            welcomeText = welcomeText + ", your active group is '" + str(group.name()) + "' (" + str(group.id()) + ")" 
+                            welcomeText = welcomeText + "\nYour active group is '" + str(group.name()) + "' (" + str(group.id()) + ")" 
                         print(welcomeText)
                         if store_valid_key:                                                
                             keyring.set_password("elabjournal-python", "apikey", key)                
@@ -71,8 +78,37 @@ class api:
             description += " - authentication failed"
         else:
             description += " - authenticated as "+self.__user["firstName"]+" "+self.__user["lastName"]
-        return(description)    
-            
+        return(description)  
+        
+    def version(self):
+        """
+        Get the version of the package.
+        """
+        return(self.__version__)
+     
+    def user(self):
+        """
+        Get the current user.
+        """
+        return(self.__user)
+        
+    def barcode(self, barcode):
+        """
+        Get object for the provided barcode (integer or string).
+        """ 
+        if isinstance(barcode,numbers.Integral) | isinstance(barcode,str): 
+            rp = self.request("/api/v1/barcode/"+urllib.parse.quote(str(barcode)), "get", {})
+            #check and get
+            if (rp is not None) & (type(rp) == dict) & ("type" in rp):
+                if rp["type"]=="SAMPLE":
+                    return(self.sample(rp["id"]))
+                else:
+                    raise Exception("unknown type "+rp["type"])                                                     
+            else:
+                return(None)    
+        else:
+            raise Exception("incorrect call")       
+     
     def samples(self, *args, **kwargs):
         """
         Get object to access samples.
@@ -83,6 +119,8 @@ class api:
             Pass the result of the first() method on this object instead
         class: sample_type
             Filter by sampleTypeID of this object 
+        class: storage
+            Filter by storageID of this object     
         
         Parameters (key/value)
         ----------------------
@@ -127,6 +165,8 @@ class api:
                     check_arg = arg.first(True)
                 if type(check_arg)==sample_type:
                     request["sampleTypeID"] = check_arg.id()
+                elif type(check_arg)==storage:
+                    request["storageID"] = check_arg.id()    
                 else:
                     raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
         if kwargs is not None:
@@ -137,7 +177,7 @@ class api:
                     request[key] = value
                 else:
                     raise Exception("unsupported key '"+key+"'")   
-        return(pager(self, "Samples", "/api/v1/samples", request, "sampleID", None, 5, self.sample))
+        return(pager(self, "Samples", "/api/v1/samples", request, "sampleID", 5, self.sample))
     
     def sample(self, id):
         """
@@ -145,7 +185,7 @@ class api:
         objects with provided id (list).
         """ 
         if isinstance(id,numbers.Integral) | isinstance(id,str): 
-            rp = self.request("/api/v1/samples/"+str(id), "get", {})
+            rp = self.request("/api/v1/samples/"+urllib.parse.quote(str(id)), "get", {})
             #check and get
             if (rp is not None) & (type(rp) == dict):
                 return(sample(self,rp))                                                 
@@ -172,7 +212,7 @@ class api:
         if isinstance(id,numbers.Integral) | isinstance(id,str):
             sample = self.sample(id)
             if (sample is not None):                
-                return(pager(self, "SampleMetas", "/api/v1/samples/"+str(id)+"/meta", request, "sampleMetaID", None, 5, sample.meta))
+                return(pager(self, "SampleMetas", "/api/v1/samples/"+urllib.parse.quote(str(id))+"/meta", request, "sampleMetaID", 5, sample.meta))
             else:
                 return(None)    
         else:
@@ -184,7 +224,7 @@ class api:
         and with provided sample_meta_id (integer or string) for the sample meta object.
         """ 
         if (isinstance(sample_id,numbers.Integral) | isinstance(sample_id,str)) & (isinstance(sample_meta_id,numbers.Integral) | isinstance(sample_meta_id,str)):
-            rp = self.request("/api/v1/samples/"+str(sample_id)+"/meta/"+str(sample_meta_id), "get", {}) 
+            rp = self.request("/api/v1/samples/"+urllib.parse.quote(str(sample_id))+"/meta/"+urllib.parse.quote(str(sample_meta_id)), "get", {}) 
             #check and get
             if not(rp==None) & (type(rp) == dict):
                 return(sample_meta(self,rp))                                                 
@@ -198,14 +238,14 @@ class api:
         Get object to access sampleSeries.
         """ 
         request = {}
-        return(pager(self, "SampleSeries", "/api/v1/sampleSeries", request, "seriesID", None, 5, self.sample_serie))        
+        return(pager(self, "SampleSeries", "/api/v1/sampleSeries", request, "seriesID", 5, self.sample_serie))        
                              
     def sample_serie(self, id):
         """
         Get sample serie object with provided id (integer or string).
         """ 
         if isinstance(id,numbers.Integral) | isinstance(id,str):
-            rp = self.request("/api/v1/sampleSeries/"+str(id), "get", {}) 
+            rp = self.request("/api/v1/sampleSeries/"+urllib.parse.quote(str(id)), "get", {}) 
             #check and get
             if not(rp==None) & (type(rp) == dict):
                 return(sample_serie(self,rp))                                                 
@@ -260,7 +300,7 @@ class api:
                     request[key] = value
                 else:
                     raise Exception("unsupported key '"+key+"'")    
-        return(pager(self, "Samples and Series", "/api/v1/samplesAndSeries", request, ["type", "sampleID", "seriesID"], None, 5, self.sample_or_serie))
+        return(pager(self, "Samples and Series", "/api/v1/samplesAndSeries", request, ["type", "sampleID", "seriesID"], 5, self.sample_or_serie))
     
     def sample_or_serie(self, type, sample_id, sample_serie_id):
         """
@@ -306,7 +346,7 @@ class api:
                     request[key] = value
                 else:
                     raise Exception("unsupported key '"+key+"'")             
-        return(pager(self, "SampleTypes", "/api/v1/sampleTypes", request, "sampleTypeID", None, 5, self.sample_type))
+        return(pager(self, "SampleTypes", "/api/v1/sampleTypes", request, "sampleTypeID", 5, self.sample_type))
         
     def sample_type(self, id):
         """
@@ -314,7 +354,7 @@ class api:
         return the sampleType for a sample if a sample object is provided.
         """ 
         if isinstance(id,numbers.Integral) | isinstance(id,str):
-            rp = self.request("/api/v1/sampleTypes/"+str(id), "get", {}) 
+            rp = self.request("/api/v1/sampleTypes/"+urllib.parse.quote(str(id)), "get", {}) 
             #check and get
             if not(rp==None) & (type(rp) == dict):
                 return(sample_type(self,rp))                                                 
@@ -331,7 +371,7 @@ class api:
         """ 
         request = {}
         if isinstance(id,numbers.Integral) | isinstance(id,str):
-            return(pager(self, "SampleTypeMetas", "/api/v1/sampleTypes/"+str(id)+"/meta", request, ["sampleTypeID", "sampleTypeMetaID"], None, 5, self.sample_type_meta))
+            return(pager(self, "SampleTypeMetas", "/api/v1/sampleTypes/"+urllib.parse.quote(str(id))+"/meta", request, ["sampleTypeID", "sampleTypeMetaID"], 5, self.sample_type_meta))
         else:
             raise Exception("incorrect call")
                              
@@ -341,7 +381,7 @@ class api:
         sample_type_meta_id (integer or string).
         """ 
         if (isinstance(sample_type_id,numbers.Integral) | isinstance(sample_type_id,str)) & (isinstance(sample_type_meta_id,numbers.Integral) | isinstance(sample_type_meta_id,str)):
-            rp = self.request("/api/v1/sampleTypes/"+str(sample_type_id)+"/meta/"+str(sample_type_meta_id), "get", {}) 
+            rp = self.request("/api/v1/sampleTypes/"+urllib.parse.quote(str(sample_type_id))+"/meta/"+urllib.parse.quote(str(sample_type_meta_id)), "get", {}) 
             #check and get
             if not(rp==None) & (type(rp) == dict):
                 return(sample_type_meta(self,rp))                                                 
@@ -350,14 +390,99 @@ class api:
         else:
             raise Exception("incorrect call")
                              
+    def storages(self, *args, **kwargs):
+        """
+        Get object to access storages.
+        
+        Parameters (object)
+        ----------------------
+        class: parser
+            Pass the result of the first() method on this object instead
+        class: sample_type
+            Filter by sampleTypeID of this object 
+        
+        Parameters (key/value)
+        ----------------------
+        expand : str, optional
+            Expand an ID field to an object
+            separate values with comma for multiple expands
+            storageLayer, managers
+        sort : str, optional    
+            Sort by a specific field
+        storageTypeID : str, optional
+            Filter by storageTypeID
+        name : str, optional
+            Filter by name
+        storageTypeName : str, optional
+            Filter by the storageType name
+        deviceType : str, optional
+            Filter by the storage type's device type (STORAGE or EQUIPMENT)
+        """    
+        request = {}
+        kwargs_special = ["expand", "sort"]
+        kwargs_keys = ["storageTypeID", "name", "storageTypeName", 
+                       "deviceType"]
+        if args is not None:
+            for arg in args:
+                check_arg = arg
+                if type(check_arg)==pager:
+                    check_arg = arg.first(True)
+                if type(check_arg)==sample_type:
+                    request["sampleTypeID"] = check_arg.id()
+                else:
+                    raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
+        if kwargs is not None:
+            for key, value in kwargs.items():
+                if key in kwargs_special:
+                    request["$"+key] = value   
+                elif key in kwargs_keys:
+                    request[key] = value
+                else:
+                    raise Exception("unsupported key '"+key+"'")   
+        return(pager(self, "Storages", "/api/v1/storage", request, "storageID", 5, self.storage))
+    
+    
+    def storage(self, id, **kwargs):
+        """
+        Get storage object with provided id (integer or string).
+        
+        Parameters (key/value)
+        ----------------------
+        expand : str, optional
+            Expand an ID field to an object
+            separate values with comma for multiple expands
+            storageLayer, managers, statistics
+        """ 
+        if isinstance(id,numbers.Integral) | isinstance(id,str):
+            request = {}
+            kwargs_special = ["expand"]
+            kwargs_keys = []
+            if kwargs is not None:
+                for key, value in kwargs.items():
+                    if key in kwargs_special:
+                        request["$"+key] = value   
+                    elif key in kwargs_keys:
+                        request[key] = value
+                    else:
+                        raise Exception("unsupported key '"+key+"'")   
+            
+            rp = self.request("/api/v1/storage/"+urllib.parse.quote(str(id)), "get", request) 
+            #check and get
+            if (rp is not None) & (type(rp) == dict):
+                return(storage(self,rp))                                                 
+            else:
+                return(None)                   
+        else:
+            raise Exception("incorrect call")
+            
     def groups(self, *args, **kwargs):
         """
         Get all groups that you have joined.
         """
         request = {}
-        return(pager(self, "Groups", "/api/v1/groups", request, "groupID", None, 5))
+        return(pager(self, "Joined groups", "/api/v1/groups", request, "groupID", 5))
     
-    def group_active(self):
+    def group(self):
         """
         Get the active group.
         """
@@ -367,6 +492,17 @@ class api:
             return(group(self,rp))                                                 
         else:
             return(None)
+            
+    def set_group(self, group_id):
+        """
+        Set the active group to the provided group_id (integer or string).
+        """
+        if isinstance(group_id,numbers.Integral) | isinstance(group_id,str):
+            self.request("/api/v1/groups/active", "put", str(group_id), headers={"Content-Type": "application/json"})            
+        elif isinstance(group_id,group):
+            self.request("/api/v1/groups/active", "put", str(group_id.id()), headers={"Content-Type": "application/json"})  
+        else:
+            raise Exception("incorrect call")                                 
     
     def projects(self, *args, **kwargs):
         """
@@ -381,7 +517,7 @@ class api:
         search : str, optional
             Search experiments by name or contents
         """    
-        request = {}
+        request = {"$sort": "projectID DESC"}
         kwargs_special = ["expand", "sort"]
         kwargs_keys = ["search"]
         if args is not None:
@@ -398,7 +534,38 @@ class api:
                     request[key] = value
                 else:
                     raise Exception("unsupported key '"+key+"'")             
-        return(pager(self, "Projects", "/api/v1/projects", request, "projectID", "projectID DESC", 5))
+        return(pager(self, "Projects", "/api/v1/projects", request, "projectID", 5, self.project))
+        
+    def project(self, id, page=0):
+        """
+        Get project object with provided id (integer or string).
+        The page parameter should not be used (used for workaround missing functionality API)
+        """ 
+        if isinstance(id,numbers.Integral) | isinstance(id,str):
+            request = {"$page": int(page)}
+            rp = self.request("/api/v1/projects", "get", request)
+            #check and get
+            if not(rp==None) & (type(rp) == dict):
+                if ("totalRecords" in rp.keys()) & ("maxRecords" in rp.keys()) & (rp["totalRecords"]>=1):
+                    maxPage = math.ceil(rp["totalRecords"]/rp["maxRecords"])
+                    if "data" in rp.keys():
+                        for dataItem in rp["data"]:
+                            if(dataItem["projectID"]==id):
+                                return(project(self, dataItem))
+                        page+=1
+                        if page < maxPage:
+                            return(self.project(id,page))
+                        else:        
+                            return(None)               
+                    else:   
+                        return(None)
+                else:
+                    return(None)                                                  
+            else:
+                return(None)  
+        else:
+            raise Exception("incorrect call")
+              
     
     def experiments(self, *args, **kwargs):
         """
@@ -417,7 +584,7 @@ class api:
         search : str, optional
             Search experiments by name or contents
         """    
-        request = {}
+        request = {"$sort": "experimentID DESC"}
         kwargs_special = ["expand", "sort"]
         kwargs_keys = ["studyID", "projectID", "search"]
         if args is not None:
@@ -434,48 +601,131 @@ class api:
                     request[key] = value
                 else:
                     raise Exception("unsupported key '"+key+"'")                   
-        return(pager(self, "Experiments", "/api/v1/experiments", request, "experimentID", "experimentID DESC", 5, self.experiment))
+        return(pager(self, "Experiments", "/api/v1/experiments", request, "experimentID", 5, self.experiment))
     
-    def studies(self, search=None):
-        request = {}
-        if not(search==None):
-            request["search"] = search
-        return(pager(self,"Studies", "/api/v1/studies", request, "studyID", "studyID DESC", 5))
+    def studies(self, *args, **kwargs):
+        """
+        Get object to access studies.
+        
+        Parameters (object)
+        ----------------------
+        class: parser
+            Pass the result of the first() method on this object instead
+        class: project
+            Filter by projectID of this object 
+        
+        Parameters (key/value)
+        ----------------------
+        expand : str, optional
+            Expand an ID field to an object
+        sort : str, optional    
+            Sort by a specific field
+        studyID : str, optional
+            Filter by studyID
+        search : str, optional
+            Search experiments by name or contents
+        projectID : str, optional
+            Filter by projectID
+        """    
+        request = {"$sort": "studyID DESC"}
+        kwargs_special = ["expand", "sort"]
+        kwargs_keys = ["studyID", "search", "projectID"]
+        if args is not None:
+            for arg in args:
+                check_arg = arg
+                if type(check_arg)==pager:
+                    check_arg = arg.first(True)
+                if type(check_arg)==project:
+                    request["projectID"] = check_arg.id()
+                else:
+                    raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
+        if kwargs is not None:
+            for key, value in kwargs.items():
+                if key in kwargs_special:
+                    request["$"+key] = value   
+                elif key in kwargs_keys:
+                    request[key] = value
+                else:
+                    raise Exception("unsupported key '"+key+"'")             
+        return(pager(self,"Studies", "/api/v1/studies", request, "studyID", 5, self.study))
+    
+    def study(self, id, **kwargs):
+        """
+        Get study object with provided id (integer or string).
+        
+        Parameters (key/value)
+        ----------------------
+        expand : str, optional
+            Expand an ID field to an object
+        """ 
+        if isinstance(id,numbers.Integral) | isinstance(id,str):
+            request = {"studyID": str(id)}
+            kwargs_special = ["expand"]
+            kwargs_keys = []
+            if kwargs is not None:
+                for key, value in kwargs.items():
+                    if key in kwargs_special:
+                        request["$"+key] = value   
+                    elif key in kwargs_keys:
+                        request[key] = value
+                    else:
+                        raise Exception("unsupported key '"+key+"'")   
+            
+            rp = self.request("/api/v1/studies", "get", request) 
+            #check and get
+            if (rp is not None) & isinstance(rp,dict) & ("data" in rp) & isinstance(rp["data"],list) & (len(rp["data"])==1):
+                return(study(self,rp["data"][0]))                                                 
+            else:
+                return(None)                   
+        else:
+            raise Exception("incorrect call")
+    
     
     def storage_types(self, search=None):
-        request = {}
+        request = {"$sort": "storageTypeID DESC"}
         if not(search==None):
             request["search"] = search
-        return(pager(self,"Storage Types", "/api/v1/storageTypes", request, "storageTypeID", "storageTypeID DESC", 5))
+        return(pager(self,"Storage Types", "/api/v1/storageTypes", request, "storageTypeID", 5))
     
-    def experiment(self, experiment_id):
-        request = {"$expand": experiment_id}
-        rp = self.request("/api/v1/experiments", "get", request)
-        #check and get
-        if not(rp==None) & (type(rp) == dict):
-            if ("totalRecords" in rp.keys()) & (rp["totalRecords"]>=1):
-                if "data" in rp.keys():
-                    if(rp["totalRecords"]==1):
-                        return(experiment(self, rp["data"][0]))
-                    else:
+    def experiment(self, id, page=0):
+        """
+        Get experiment object with provided id (integer or string).
+        The page parameter should not be used (used for workaround missing functionality API)
+        """ 
+        if isinstance(id,numbers.Integral) | isinstance(id,str):
+            request = {"$page": int(page)}
+            rp = self.request("/api/v1/experiments", "get", request)
+            #check and get
+            if not(rp==None) & (type(rp) == dict):
+                if ("totalRecords" in rp.keys()) & ("maxRecords" in rp.keys()) & (rp["totalRecords"]>=1):
+                    maxPage = math.ceil(rp["totalRecords"]/rp["maxRecords"])
+                    if "data" in rp.keys():
                         for dataItem in rp["data"]:
-                            if(dataItem["experimentID"]==experiment_id):
+                            if(dataItem["experimentID"]==id):
                                 return(experiment(self, dataItem))
-                        return(None)               
-                else:   
-                    return(None)
+                        page+=1
+                        if page < maxPage:
+                            return(self.experiment(id,page))
+                        else:        
+                            return(None)               
+                    else:   
+                        return(None)
+                else:
+                    return(None)                                                  
             else:
-                return(None)                                                  
+                return(None)
         else:
-            return(None)
+            raise Exception("incorrect call")        
         
     def section(self, section_id):
-        rp = self.request("/api/v1/experiments/sections/"+str(section_id), "get", {})
+        rp = self.request("/api/v1/experiments/sections/"+urllib.parse.quote(str(section_id)), "get", {})
         #check and get
         if not(rp==None) & (type(rp) == dict):
             return(section(self,rp))                                                 
         else:
             return(None)    
+    
+    
     
     
     def request(self, location, method, request, key=None, show_messages=True, stream=False, headers=None):  
@@ -487,20 +737,20 @@ class api:
             if not(headers==None):
                 request_headers.update(headers)
             if method=="get":
-                if type(request) == dict:
+                if isinstance(request,dict):
                     data = request
                 else:
                     raise Exception("unsupported type of request") 
                 response = requests.get(self.__url+location, params=data, timeout=self.__timeout, headers=request_headers, stream=stream)
             elif method=="post":    
-                if type(request) == str:
+                if isinstance(request,str):
                     request_headers.update({"Content-Type": "application/json"})
                     data = request
                 else:
                     raise Exception("unsupported type of request") 
                 response = requests.post(self.__url+location, data=data, timeout=self.__timeout, headers=request_headers, stream=stream)                
             elif method=="put":    
-                if (type(request) == str) | (type(request) == bytes):
+                if isinstance(request,str) | isinstance(request,bytes):
                     data = request
                 else:
                     raise Exception("unsupported type of request") 

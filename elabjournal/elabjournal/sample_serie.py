@@ -1,4 +1,3 @@
-from .pager import *
 import json
 import pandas as pd
 import numbers
