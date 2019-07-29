@@ -8,5 +8,5 @@ Install with
 pip install elabjournal
 ```
 
-See [jupyter](https://github.com/matthijsbrouwer/jupyter-elabjournal) notebooks for
+See [jupyter notebooks](https://github.com/matthijsbrouwer/jupyter-elabjournal) for
 a demonstration of functionality.
