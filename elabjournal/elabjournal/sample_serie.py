@@ -38,6 +38,15 @@ class sample_serie:
         """
         return(self.__seriesID)    
         
+    def barcode(self):
+        """
+        Get the barcode of the sample.
+        """
+        if "barcode" in self.__data:
+            barcode = self.__data["barcode"]
+            return(barcode)
+        return None
+        
     def data(self):
         """
         Get the data describing the sample serie.

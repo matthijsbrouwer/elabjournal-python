@@ -9,6 +9,8 @@ from .sample import *
 from .sample_meta import *
 from .sample_serie import *
 from .storage import *
+from .storage_layer import *
+from .storage_type import *
 from .study import *
 from .. import _version
 
@@ -38,6 +40,8 @@ class api:
             if key==None:            
                 return(False)
             elif (type(key) == str) & (len(key)>0):
+                #filter input                
+                key = key.split(";",1)[-1].strip()
                 try:
                     rp = self.request("/api/v1/auth/user","get",{"body":{}},key)                   
                     if not(rp==None) & ("user" in rp.keys()):
@@ -73,7 +77,7 @@ class api:
         """
         Internal use only: description API object
         """ 
-        description = "eLABJournal API object"
+        description = "eLABJournal API object - version "+self.__version__
         if self.__key == None:
             description += " - authentication failed"
         else:
@@ -101,7 +105,11 @@ class api:
             #check and get
             if (rp is not None) & (type(rp) == dict) & ("type" in rp):
                 if rp["type"]=="SAMPLE":
-                    return(self.sample(rp["id"]))
+                    return(self.sample(rp["id"]))                    
+                elif rp["type"]=="SAMPLESERIES":   
+                    return(self.sample_serie(rp["id"]))                 
+                elif rp["type"]=="STORAGELAYER":   
+                    return(self.storage_layer(rp["id"]))                 
                 else:
                     raise Exception("unknown type "+rp["type"])                                                     
             else:
@@ -233,11 +241,39 @@ class api:
         else:
             raise Exception("incorrect call")
                              
-    def sample_series(self):
+    def sample_series(self, *args, **kwargs):
         """
         Get object to access sampleSeries.
-        """ 
+        
+        Parameters (key/value)
+        ----------------------
+        expand : str, optional
+            Expand an ID field to an object
+        sort : str, optional    
+            Sort by a specific field
+        """    
         request = {}
+        kwargs_special = ["expand", "sort"]
+        kwargs_keys = []
+        if args is not None:
+            for arg in args:
+                check_arg = arg
+                if type(check_arg)==pager:
+                    check_arg = arg.first(True)
+                if type(check_arg)==sample_type:
+                    request["sampleTypeID"] = check_arg.id()
+                elif type(check_arg)==storage:
+                    request["storageID"] = check_arg.id()    
+                else:
+                    raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
+        if kwargs is not None:
+            for key, value in kwargs.items():
+                if key in kwargs_special:
+                    request["$"+key] = value   
+                elif key in kwargs_keys:
+                    request[key] = value
+                else:
+                    raise Exception("unsupported key '"+key+"'")           
         return(pager(self, "SampleSeries", "/api/v1/sampleSeries", request, "seriesID", 5, self.sample_serie))        
                              
     def sample_serie(self, id):
@@ -398,8 +434,8 @@ class api:
         ----------------------
         class: parser
             Pass the result of the first() method on this object instead
-        class: sample_type
-            Filter by sampleTypeID of this object 
+        class: storage_type
+            Filter by storageTypeID of this object 
         
         Parameters (key/value)
         ----------------------
@@ -427,8 +463,8 @@ class api:
                 check_arg = arg
                 if type(check_arg)==pager:
                     check_arg = arg.first(True)
-                if type(check_arg)==sample_type:
-                    request["sampleTypeID"] = check_arg.id()
+                if type(check_arg)==storage_type:
+                    request["storageTypeID"] = check_arg.id()
                 else:
                     raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
         if kwargs is not None:
@@ -681,11 +717,136 @@ class api:
             raise Exception("incorrect call")
     
     
-    def storage_types(self, search=None):
-        request = {"$sort": "storageTypeID DESC"}
-        if not(search==None):
-            request["search"] = search
-        return(pager(self,"Storage Types", "/api/v1/storageTypes", request, "storageTypeID", 5))
+    def storage_types(self, *args, **kwargs):
+        """
+        Get object to access storageTypes.
+        
+        Parameters (key/value)
+        ----------------------
+        expand : str, optional
+            Expand an ID field to an object
+        sort : str, optional    
+            Sort by a specific field
+        """    
+        request = {}
+        kwargs_special = ["expand", "sort"]
+        kwargs_keys = []
+        if args is not None:
+            for arg in args:
+                check_arg = arg
+                if type(check_arg)==pager:
+                    check_arg = arg.first(True)
+                raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
+        if kwargs is not None:
+            for key, value in kwargs.items():
+                if key in kwargs_special:
+                    request["$"+key] = value   
+                elif key in kwargs_keys:
+                    request[key] = value
+                else:
+                    raise Exception("unsupported key '"+key+"'")                     
+        return(pager(self,"Storage Types", "/api/v1/storageTypes", request, "storageTypeID", 5, self.storage_type))
+    
+    def storage_type(self, id):
+        """
+        Get storage type object with provided id (integer or string).
+        """ 
+        if isinstance(id,numbers.Integral) | isinstance(id,str):
+            rp = self.request("/api/v1/storageTypes/"+urllib.parse.quote(str(id)), "get", {}) 
+            #check and get
+            if not(rp==None) & (type(rp) == dict):
+                return(storage_type(self,rp))                                                 
+            else:
+                return(None)                   
+        else:
+            raise Exception("incorrect call")                                 
+    
+    def storage_layers(self, *args, **kwargs):
+        """
+        Get object to access storageLayers.
+        
+        Parameters (object)
+        ----------------------
+        class: parser
+            Pass the result of the first() method on this object instead
+        class: storage_layer
+            Filter by storageLayerID of this object as parent
+        class: storage
+            Filter by storageID of this object     
+        
+        Parameters (key/value)
+        ----------------------
+        expand : str, optional
+            Expand an ID field to an object
+            separate values with comma for multiple expands
+            storage, location, storageLayers, samples, managers, reservations / allReservations            
+        sort : str, optional    
+            Sort by a specific field
+        name : str, optional    
+            Filter by name
+        barcodes : str, optional    
+            Filter by barcodes (comma-separated)
+        parentStorageLayerID : str, optional    
+            Filter by parentStorageLayerID
+        storageID : str, optional    
+            Filter by storageID
+        """    
+        request = {}
+        kwargs_special = ["expand", "sort"]
+        kwargs_keys = ["name","barcodes","parentStorageLayerID","storageID"]
+        if args is not None:
+            for arg in args:
+                check_arg = arg
+                if type(check_arg)==pager:
+                    check_arg = arg.first(True)
+                if type(check_arg)==storage:
+                    request["storageID"] = check_arg.id()
+                elif type(check_arg)==storage_layer:
+                    request["parentStorageLayerID"] = check_arg.id()
+                else:
+                    raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
+        if kwargs is not None:
+            for key, value in kwargs.items():
+                if key in kwargs_special:
+                    request["$"+key] = value   
+                elif key in kwargs_keys:
+                    request[key] = value
+                else:
+                    raise Exception("unsupported key '"+key+"'")                     
+        return(pager(self,"Storage Layers", "/api/v1/storageLayers", request, "storageLayerID", 5, self.storage_layer))
+    
+    def storage_layer(self, id, **kwargs):
+        """
+        Get storage layer object with provided id (integer or string).
+        
+        Parameters (key/value)
+        ----------------------
+        expand : str, optional
+            Expand an ID field to an object
+            separate values with comma for multiple expands
+            storage, location, storageLayers, samples, managers, reservations / allReservations, statistics            
+        """ 
+        if isinstance(id,numbers.Integral) | isinstance(id,str):
+            request = {}
+            kwargs_special = ["expand"]
+            kwargs_keys = []
+            if kwargs is not None:
+                for key, value in kwargs.items():
+                    if key in kwargs_special:
+                        request["$"+key] = value   
+                    elif key in kwargs_keys:
+                        request[key] = value
+                    else:
+                        raise Exception("unsupported key '"+key+"'")   
+            
+            rp = self.request("/api/v1/storageLayers/"+urllib.parse.quote(str(id)), "get", request) 
+            #check and get
+            if not(rp==None) & (type(rp) == dict):
+                return(storage_layer(self,rp))                                                 
+            else:
+                return(None)                   
+        else:
+            raise Exception("incorrect call")                                 
     
     def experiment(self, id, page=0):
         """

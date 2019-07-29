@@ -1,4 +1,4 @@
-## Python package elabjournal
+## Python package eLABJournal
 
 Source Python package [elabjournal](https://pypi.org/project/elabjournal/)
 

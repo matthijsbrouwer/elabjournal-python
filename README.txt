@@ -1,4 +1,4 @@
-Python package elabjournal
+Python package eLABJournal
 
 Install with
 

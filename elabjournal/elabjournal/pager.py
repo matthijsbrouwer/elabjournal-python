@@ -258,7 +258,11 @@ class pager:
             if recordCounter>=totalRecords:
                 break    
             page+=1
-        return pd.concat(dataSets, sort=False)       
+        if len(dataSets)>0:    
+            return pd.concat(dataSets, sort=False)
+        else:
+            return pd.DataFrame()
+                       
                                     
     
     def show(self, fields=None, size=None):   

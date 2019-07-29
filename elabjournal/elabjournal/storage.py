@@ -16,7 +16,7 @@ class storage:
             self.__api = api
             self.__storageID = data["storageID"]
             self.__name = data["name"]
-            self.__title = "Sample type '"+self.__name+"' ("+str(self.__storageID)+")"
+            self.__title = "Storage '"+self.__name+"' ("+str(self.__storageID)+")"
             self.__data = data
         else:
             raise Exception("no (valid) storage data") 
@@ -38,6 +38,25 @@ class storage:
         Get the id of the storage.
         """
         return(self.__storageID)    
+        
+    def barcode(self):
+        """
+        Get the barcode of the storage (layer).
+        """
+        if "barcode" in self.__data:
+            barcode = self.__data["barcode"]
+            return(barcode)
+        return None
+        
+    def storage_layer(self):
+        """
+        Get the storage layer.
+        """
+        if "storageLayerID" in self.__data:
+            storageLayerID = self.__data["storageLayerID"]
+            if storageLayerID>0:
+                return(self.__api.storage_layer(storageLayerID))
+        return None     
         
     def data(self):
         """
