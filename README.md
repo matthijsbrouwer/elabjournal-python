@@ -5,7 +5,7 @@ Source Python package [elabjournal](https://pypi.org/project/elabjournal/)
 Install with
 
 ```bash
-pip install elabjournal
+pip install --upgrade elabjournal
 ```
 
 See [jupyter notebooks](https://github.com/matthijsbrouwer/jupyter-elabjournal) for
