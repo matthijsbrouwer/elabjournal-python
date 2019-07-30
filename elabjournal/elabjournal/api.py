@@ -211,6 +211,171 @@ class api:
         else:
             raise Exception("incorrect call")         
                 
+    def create_sample(self, *args, **kwargs):
+        """
+        Create a sample.
+        
+        Parameters (object)
+        ----------------------
+        class: parser
+            Pass the result of the first() method on this object instead
+        class: sample_type
+            Pass the sampleTypeID of this object 
+        class: sample
+            Pass the sampleID of this object as parentSampleID
+        class: storage_layer
+            Pass the storageLayerID of this object as storageLayerID
+                
+        
+        Parameters (key/value)
+        ----------------------
+        name : str, optional
+            Name of the new sample
+        sampleTypeID : integer, optional
+            Define sampleType of the new sample                  
+        checkedOut: boolean, optional
+            Define checkedOut status
+        parentSampleID : integer, optional
+            Define parentSample of the new sample
+        description : str, optional
+            Description for the new sample
+        note : str, optional
+            Note for the new sample
+        altID : str, optional
+            Alternative ID for the new sample
+        storageLayerID : integer, optional
+            Define storage layer for the new sample
+        position : integer, optional
+            Define position of the new sample               
+        
+        """ 
+        request = {}
+        kwargs_obligatory = ["name", "sampleTypeID"]
+        kwargs_keys = ["checkedOut", "parentSampleID", "description", "note", "altID", "storageLayerID", "position"]
+        if args is not None:
+            for arg in args:
+                check_arg = arg
+                if type(check_arg)==pager:
+                    check_arg = arg.first(True)
+                if type(check_arg)==sample_type:
+                    request["sampleTypeID"] = check_arg.id()
+                elif type(check_arg)==sample:
+                    request["parentSampleID"] = check_arg.id()    
+                elif type(check_arg)==storage_layer:
+                    request["storageLayerID"] = check_arg.id()    
+                else:
+                    raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
+        if kwargs is not None:
+            for key, value in kwargs.items():
+                if key in kwargs_obligatory:
+                    request[key] = value   
+                elif key in kwargs_keys:
+                    request[key] = value
+                else:
+                    raise Exception("unsupported key '"+key+"'") 
+        for key in kwargs_obligatory:
+            if key not in request:
+                raise Exception("'"+key+"' must be provided")             
+        rp = self.request("/api/v1/samples/", "post", request)
+        if not (rp == ""):
+            return(self.sample(rp))
+        else:    
+            return(None)   
+            
+    def update_sample(self, id, *args, **kwargs):
+        """
+        Update the sample with the provided id.
+        
+        Parameters (object)
+        ----------------------
+        class: parser
+            Pass the result of the first() method on this object instead
+        class: sample
+            Pass the sampleID of this object as parentSampleID
+        class: storage_layer
+            Pass the storageLayerID of this object as storageLayerID
+                
+        
+        Parameters (key/value)
+        ----------------------
+        name : str, optional
+            Name of the new sample
+        parentSampleID : integer, optional
+            Define parentSample of the new sample
+        description : str, optional
+            Description for the new sample
+        note : str, optional
+            Note for the new sample
+        altID : str, optional
+            Alternative ID for the new sample
+        storageLayerID : integer, optional
+            Define storage layer for the new sample
+        position : integer, optional
+            Define position of the new sample            
+        
+        """ 
+        request = {}
+        kwargs_keys = ["name", "parentSampleID", "description", "note", "altID", "storageLayerID", "position"]
+        if args is not None:
+            for arg in args:
+                check_arg = arg
+                if type(check_arg)==pager:
+                    check_arg = arg.first(True)
+                if type(check_arg)==sample:
+                    request["parentSampleID"] = check_arg.id()    
+                elif type(check_arg)==storage_layer:
+                    request["storageLayerID"] = check_arg.id()    
+                else:
+                    raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
+        if kwargs is not None:
+            for key, value in kwargs.items():
+                if key in kwargs_keys:
+                    request[key] = value
+                else:
+                    raise Exception("unsupported key '"+key+"'") 
+        if(len(request)>0):            
+            rp = self.request("/api/v1/samples/"+urllib.parse.quote(str(id)), "patch", request)
+            if not (rp == ""):
+                return(self.sample(id))
+            else:    
+                return(None)  
+        else:
+            raise Exception("nothing to update")           
+        
+    def delete_sample(self, *args, **kwargs):
+        """
+        Delete a sample.
+        
+        Parameters (object)
+        ----------------------
+        class: sample
+            Delete this sample
+                
+        
+        Parameters (key/value)
+        ----------------------
+        id : str
+            Delete the sample with this sampleID             
+        
+        """ 
+        if args is not None:
+            for arg in args:
+                check_arg = arg
+                if type(check_arg)==sample:
+                    id = check_arg.id()    
+                else:
+                    raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
+        if kwargs is not None:
+            for key, value in kwargs.items():
+                if key == "id":
+                    id = value
+                else:
+                    raise Exception("unsupported key '"+key+"'")                
+        if isinstance(id,numbers.Integral) | isinstance(id,str):             
+            rp = self.request("/api/v1/samples/"+urllib.parse.quote(str(id)), "delete", {})
+            return(id)    
+        else:
+            raise Exception("incorrect call")             
         
     def sample_metas(self, id):
         """
@@ -907,6 +1072,9 @@ class api:
                 if isinstance(request,str):
                     request_headers.update({"Content-Type": "application/json"})
                     data = request
+                elif isinstance(request,dict):
+                    request_headers.update({"Content-Type": "application/json"})
+                    data = json.dumps(request)
                 else:
                     raise Exception("unsupported type of request") 
                 response = requests.post(self.__url+location, data=data, timeout=self.__timeout, headers=request_headers, stream=stream)                
@@ -916,6 +1084,22 @@ class api:
                 else:
                     raise Exception("unsupported type of request") 
                 response = requests.put(self.__url+location, data=data, timeout=self.__timeout, headers=request_headers, stream=stream)                
+            elif method=="patch":    
+                if isinstance(request,str):
+                    request_headers.update({"Content-Type": "application/json"})
+                    data = request
+                elif isinstance(request,dict):
+                    request_headers.update({"Content-Type": "application/json"})
+                    data = json.dumps(request)
+                else:
+                    raise Exception("unsupported type of request") 
+                response = requests.patch(self.__url+location, data=data, timeout=self.__timeout, headers=request_headers, stream=stream)                
+            elif method=="delete":
+                if isinstance(request,dict):
+                    data = request
+                else:
+                    raise Exception("unsupported type of request") 
+                response = requests.delete(self.__url+location, params=data, timeout=self.__timeout, headers=request_headers, stream=stream)
             else:
                 raise Exception("unsupported method")   
             response.raise_for_status() 

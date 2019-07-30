@@ -1,6 +1,8 @@
 from .sample_type import *
 import json
 import pandas as pd
+import urllib.parse
+
 
 class sample:
 
@@ -85,6 +87,20 @@ class sample:
         """
         Get meta item (meta) with provided sample_meta_id for the sample.
         """
-        return self.__api.sample_meta(self.__sampleID, sample_meta_id)             
-    
+        return self.__api.sample_meta(self.__sampleID, sample_meta_id)  
+        
+    def update(self, *args, **kwargs):
+        """
+        Update the sample.
+        
+        See update_sample on the api for the available/allowed parameters       
+        
+        """   
+        self.__api.update_sample(self.__sampleID, *list(args), **dict(kwargs))
+        rp = self.__api.request("/api/v1/samples/"+urllib.parse.quote(str(self.__sampleID)), "get", {})
+        #check and get
+        if (rp is not None) & (type(rp) == dict):
+            self.__init__(self.__api,rp)                                               
+        else:
+            raise Exception("couldn't perform selfupdate")
     
