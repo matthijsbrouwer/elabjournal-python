@@ -1,45 +1,111 @@
-from .pager import *
+from .eLABJournalObject import * 
+
+from .SectionMetas import *
+
 import json
 import xlrd
 import pandas as pd
 import matplotlib
 import urllib.parse
+import numbers
+import base64
+import html
 from PIL import Image, PngImagePlugin
+from IPython.core.display import HTML
 from io import BytesIO
 
-class section:
+
+class Section(eLABJournalObject):
 
     def __init__(self, api, data):        
         """
-        Internal use only: initialize section object
+        Internal use only: initialize section object.
         """
         if (not(data==None) & (type(data) == dict) & 
-            ("expJournalID" in data.keys()) & 
             ("experimentID" in data.keys()) & 
             ("sectionType" in data.keys()) & 
             ("sectionHeader" in data.keys())
            ):
-            self.__api = api
-            self.__expJournalID = data["expJournalID"]
             self.__experimentID = data["experimentID"]
             self.__sectionType = data["sectionType"]
-            self.__sectionHeader = data["sectionHeader"]
-            self.__title = "Section '"+self.__sectionHeader+"' ("+str(self.__expJournalID)+", "+self.__sectionType+")"
-            self.__data = data
+            super().__init__(api, data, "expJournalID", str(data["sectionHeader"]))                                
         else:
             raise Exception("no (valid) section data") 
         
-    def __repr__(self):
+    def visualize(self):
         """
-        Internal use only: description section object
-        """ 
-        return(self.__title)
+        Show visualization.
+        """
+        section_id = str(self.id())
+        section_name = str(self.name()) 
+        section_type = str(self.__sectionType)                
+        experiment = self._eLABJournalObject__api.experiment(self.data()["experimentID"])
+        experiment_id = str(experiment.id())
+        experiment_name = str(experiment.name()) 
+        project = self._eLABJournalObject__api.project(experiment.data()["projectID"])
+        project_id = str(project.id())
+        project_name = str(project.name())
+        study = self._eLABJournalObject__api.study(experiment.data()["studyID"])
+        study_id = str(study.id())
+        study_name = str(study.name())
         
-    def id(self):
+        g = graphviz.Digraph()
+
+        with g.subgraph(name="cluster_section") as g_section:
+            g_section.attr(tooltip="section", label="expJournalID "+section_id, style="filled", color="black", fillcolor="#067172", fontcolor="white")
+            g_section.node("section_name",section_name, {"tooltip": "title of section", "style": "filled", "color": "#0B3B52", "fontcolor": "white", "shape": "rect"})                        
+        
+        with g.subgraph(name="cluster_experiment") as g_experiment:
+            g_experiment.attr(tooltip="experiment", label="experimentID "+experiment_id, style="filled", color="black", fillcolor="#EEEEEE")
+            g_experiment.node("experiment_name",experiment_name, {"tooltip": "name of experiment", "style": "filled", "fillcolor": "white", "shape": "rect"})                        
+        
+        with g.subgraph(name="cluster_study") as g_study:
+            g_study.attr(tooltip="study", label="studyID "+study_id, style="filled", color="black", fillcolor="#EEEEEE")
+            g_study.node("study_name",study_name, {"tooltip": "name of experiment", "style": "filled", "fillcolor": "white", "shape": "rect"})   
+        
+        with g.subgraph(name="cluster_project") as g_project:
+            g_project.attr(tooltip="project", label="projectID "+project_id, style="filled", color="black", fillcolor="#EEEEEE")
+            g_project.node("project_name",project_name, {"tooltip": "name of experiment", "style": "filled", "fillcolor": "white", "shape": "rect"})                        
+        
+        with g.subgraph(name="cluster_content") as g_content:
+            g_content.attr(style="dashed,filled", color="black", fillcolor="white")
+            with g_content.subgraph(name="cluster_sectiontype") as g_sectiontype:
+                g_sectiontype.attr(style="filled", color="black", fillcolor="#EEEEEE")
+                g_sectiontype.node("section_type",section_type, {"tooltip": "type of section", "style": "filled", "fillcolor": "white", "shape": "rect"})                             
+                                                                                                                 
+        metas = self.metas().all()
+        if len(metas)>0:
+            with g.subgraph(name="cluster_metas") as g_metas:
+                htmlCode = "<<table bgcolor=\"#FFFFFF\" border=\"0\" cellborder=\"1\" cellspacing=\"0\">"
+                htmlCode = htmlCode + "<tr><td><b>name</b></td><td><b>value</b></td></tr>"
+                for metaID in metas.index:
+                    meta_name = metas.loc[metaID]["name"]
+                    meta_value = metas.loc[metaID]["val"]
+                    htmlCode = htmlCode + "<tr><td>"+html.escape(meta_name)+"</td><td>"+html.escape(meta_value)+"</td></tr>"                
+                htmlCode = htmlCode + "</table>>"
+                g_metas.attr(labelloc="b", label=htmlCode, style="filled", color="black", fillcolor="#EEEEEE")                                          
+                g_metas.node("metas","Metas",{"shape": "rect", "style": "filled", "fillcolor": "white"})                                    
+            g.edge("project_name","metas",None,{"rank": "source", "style": "invis"})
+            g.edge("study_name","metas",None,{"rank": "source", "style": "invis"})
+            g.edge("experiment_name","metas",None,{"rank": "source", "style": "invis"})
+            g.edge("section_name","metas",None,{"rank": "source", "style": "invis"})
+            g.edge("section_type","metas",None,{"constraint": "false"})
+                
+        g.edge("project_name","study_name",None,{"constraint": "false"})
+        g.edge("study_name","experiment_name",None,{"constraint": "false"})    
+        g.edge("experiment_name","section_name",None,{"constraint": "false"})  
+        g.edge("section_name","section_type",None,{})  
+        
+        return(g)  
+        
+    def show(self):
         """
-        Get the id of the section.
-        """ 
-        return(self.__expJournalID)
+        Show the content of the section.
+        """
+        htmlCode = "<div style=\"border: 1px solid #067172; padding: 10px;\">"
+        htmlCode = htmlCode + "<b>Section type "+str(self.__sectionType)+" not implemented</b>"                                                    
+        htmlCode = htmlCode + "</div>"                                                    
+        return(HTML(htmlCode))      
     
     def type(self):
         """
@@ -47,79 +113,54 @@ class section:
         """ 
         return(self.__sectionType)
     
-    def title(self):
-        """
-        Get the title of the section.
-        """ 
-        return(self.__sectionHeader)
-    
     def experiment(self):
         """
         Get the experiment containing this section.
         """ 
-        return(self.__api.experiment(self.__experimentID))
+        return(self._eLABJournalObject__api.experiment(self.__experimentID))
+        
+    def meta(self, name):
+        """
+        Get meta item (meta) by name for the section.
+        """
+        rp = self._eLABJournalObject__api._request("/api/v1/experiments/sections/"+urllib.parse.quote(str(self.id()))+"/meta/"+urllib.parse.quote(str(name)), "get", {})
+        if not(rp==None) & (type(rp) == dict):
+            return(rp)                                                 
+        else:
+            return(None)
+   
+        
+    def metas(self, *args, **kwargs):
+        """
+        Get object to access metas.
+        
+        Parameters (key/value)
+        ----------------------
+        expand : str, optional
+            Expand an ID field to an object
+        sort : str, optional    
+            Sort by a specific field
+        """    
+        request = {}
+        kwargs_special = ["expand", "sort"]
+        kwargs_keys = []
+        if args is not None:
+            for arg in args:
+                check_arg = arg
+                if isinstance(check_arg, eLABJournalPager):
+                    check_arg = arg.first(True)
+                raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
+        if kwargs is not None:
+            for key, value in kwargs.items():
+                if key in kwargs_special:
+                    request["$"+key] = value   
+                elif key in kwargs_keys:
+                    request[key] = value
+                else:
+                    raise Exception("unsupported key '"+key+"'")             
+        return(SectionMetas(self._eLABJournalObject__api,"Section meta items", 
+                     "/api/v1/experiments/sections/"+urllib.parse.quote(str(self.id()))+"/meta", request, "expJournalMetaID", 5))
+        
            
-    def get(self):
-        """
-        Get the content of this section, output depends on the section type.
-        """ 
-        if self.__sectionType=="DATATABLE":
-            rp = self.__api.request("/api/v1/experiments/sections/"+urllib.parse.quote(str(self.__expJournalID))+"/datatable", "get", {})
-            if not(rp==None) & (type(rp) == list):
-                return(pd.DataFrame(rp))                                                 
-            else:
-                raise Exception("section type "+self.__sectionType+" returns unexpected data")
-        elif self.__sectionType=="PARAGRAPH":
-            rp = self.__api.request("/api/v1/experiments/sections/"+urllib.parse.quote(str(self.__expJournalID))+"/html", "get", {}, stream=True)
-            return(rp.decode("utf-8"))                                                             
-        elif self.__sectionType=="CANVAS":
-            rp = self.__api.request("/api/v1/experiments/sections/"+urllib.parse.quote(str(self.__expJournalID))+"/canvas", "get", {}, stream=True)
-            stream = BytesIO(rp)
-            return(Image.open(stream))                                                             
-        elif self.__sectionType=="EXCEL":
-            rp = self.__api.request("/api/v1/experiments/sections/"+urllib.parse.quote(str(self.__expJournalID))+"/excel", "get", {}, stream=True)
-            wb = xlrd.open_workbook(file_contents=rp)
-            xlsx = pd.ExcelFile(wb, engine="xlrd")                        
-            return(xlsx)                                                             
-        elif self.__sectionType=="IMAGE":
-            return(pager(self.__api, "Images", "/api/v1/experiments/sections/"+urllib.parse.quote(str(self.__expJournalID))+"/images", {}, "experimentFileID", 5))                                  
-        else:
-            raise Exception("section type "+self.__sectionType+" not supported")
-            
-    def set(self, data):
-        """
-        Set or update the content of this section, output depends on the section type.
-        """ 
-        if self.__sectionType=="DATATABLE":
-            if type(data) == pd.DataFrame:
-                location = "/api/v1/experiments/sections/"+urllib.parse.quote(str(self.__expJournalID))+"/datatable"
-                rp = self.__api.request(location, "put", json.dumps(data.values.tolist()), headers={"Content-Type": "application/json"})                
-            else:
-                raise Exception("data type not supported to set "+self.__sectionType) 
-        elif self.__sectionType=="CANVAS":
-            location = "/api/v1/experiments/sections/"+urllib.parse.quote(str(self.__expJournalID))+"/canvas"
-            if type(data) == matplotlib.figure.Figure:
-                sizes = data.get_size_inches()
-                dpi = 825/sizes[0]
-                figfile = BytesIO()
-                data.savefig(figfile, format="png", dpi=dpi, bbox_inches="tight")
-                rp = self.__api.request(location, "put", figfile.getvalue(), headers={"Content-Type": "image/png"}) 
-            elif type(data) == PngImagePlugin.PngImageFile:
-                with BytesIO() as output:
-                    data.save(output, format="png")
-                    contents = output.getvalue()
-                rp = self.__api.request(location, "put", contents, headers={"Content-Type": "image/png"}) 
-            else:
-                raise Exception("data type not supported to set "+self.__sectionType)    
-        elif self.__sectionType=="EXCEL":
-            if type(data) == pd.DataFrame:
-                location = "/api/v1/experiments/sections/"+urllib.parse.quote(str(self.__expJournalID))+"/excel"
-                raise Exception("section type EXCEL not (yet) supported")
-                #rp = self.__api.request(location, "put", dump)                
-            else:
-                raise Exception("data type not supported to set "+self.__sectionType)                             
-        else:
-            raise Exception("section type "+self.__sectionType+" not supported")    
-        
-        
+       
         

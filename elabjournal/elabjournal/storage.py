@@ -1,50 +1,47 @@
-from .pager import *
-import json
-import pandas as pd
+from .eLABJournalObject import * 
+from .Samples import *
+
 import urllib.parse
 
-class storage:
+class Storage(eLABJournalObject):
 
     def __init__(self, api, data):
         """
         Internal use only: initialize storage object
         """
         if ((data is not None) & (type(data) == dict) & 
-            ("storageID" in data) & 
             ("name" in data)
            ):
-            self.__api = api
-            self.__storageID = data["storageID"]
-            self.__name = data["name"]
-            self.__title = "Storage '"+self.__name+"' ("+str(self.__storageID)+")"
-            self.__data = data
+            super().__init__(api, data, "storageID", str(data["name"]))            
         else:
-            raise Exception("no (valid) storage data") 
+            raise Exception("no (valid) Storage data") 
+            
+    def visualize(self):
+        """
+        Create visualization.
+        """
+        g = super().visualize()
         
-    def __repr__(self):
-        """
-        Internal use only: description storage object
-        """ 
-        return(self.__title)
+        storage_type = self.storage_type()
         
-    def name(self):
-        """
-        Get the name of the storage.
-        """
-        return(self.__name)
-        
-    def id(self):
-        """
-        Get the id of the storage.
-        """
-        return(self.__storageID)    
+        if storage_type:
+            storage_type_id = str(storage_type.id())
+            storage_type_name = str(storage_type.name())
+            storage_type_type = str(storage_type.type())
+            with g.subgraph(name="cluster_type") as g_type:
+                g_type.attr(tooltip="type of storage", label="storageTypeID "+storage_type_id, style="filled", color="black", fillcolor="#EEEEEE")
+                g_type.node("storage_type_name",storage_type_name, {"tooltip": "type of storage", "style": "filled", "fillcolor": "white", "shape": "rect"})                                       
+                g_type.node("storage_type_type",storage_type_type, {"tooltip": "type of storage", "style": "filled", "fillcolor": "white", "shape": "rect"})                                       
+            g.edge("storage_type_type", "class_name", None, {"constraint": "false"})
+            
+        return(g)              
         
     def barcode(self):
         """
         Get the barcode of the storage (layer).
         """
-        if "barcode" in self.__data:
-            barcode = self.__data["barcode"]
+        if "barcode" in self.data():
+            barcode = self.data()["barcode"]
             return(barcode)
         return None
         
@@ -52,24 +49,29 @@ class storage:
         """
         Get the storage layer.
         """
-        if "storageLayerID" in self.__data:
-            storageLayerID = self.__data["storageLayerID"]
+        if "storageLayerID" in self.data():
+            storageLayerID = self.data()["storageLayerID"]
             if storageLayerID>0:
-                return(self.__api.storage_layer(storageLayerID))
+                return(self._eLABJournalObject__api.storage_layer(storageLayerID))
         return None     
         
-    def data(self):
+    def storage_type(self):
         """
-        Get the data describing the storage.
+        Get the storage type.
         """
-        return(self.__data)   
+        if "storageType" in self.data():
+            storageType = self.data()["storageType"]
+            if isinstance(storageType, dict) & ("storageTypeID" in storageType.keys()):
+                storageTypeID = storageType["storageTypeID"]
+                return(self._eLABJournalObject__api.storage_type(storageTypeID))
+        return None     
         
     def statistics(self):
         """
-        Get statistics for storage .
+        Get statistics for storage.
         """
         request = {} 
-        rp = self.__api.request("/api/v1/storage/"+urllib.parse.quote(str(self.__storageID))+"/statistics", "get", request) 
+        rp = self._eLABJournalObject__api._request("/api/v1/storage/"+urllib.parse.quote(str(self.id()))+"/statistics", "get", request) 
         #check and get
         if (rp is not None) & (type(rp) == dict):
             return(rp)                                                 
@@ -118,9 +120,9 @@ class storage:
         if args is not None:
             for arg in args:
                 check_arg = arg
-                if type(check_arg)==pager:
+                if isinstance(check_arg,eLABJournalPager):
                     check_arg = arg.first(True)
-                if type(check_arg)==sample_type:
+                if isinstance(check_arg,SampleType):
                     request["sampleTypeID"] = check_arg.id()
                 else:
                     raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
@@ -132,7 +134,7 @@ class storage:
                     request[key] = value
                 else:
                     raise Exception("unsupported key '"+key+"'")   
-        return(pager(self.__api, "Samples", "/api/v1/storage/"+urllib.parse.quote(str(self.__storageID))+"/samples", request, "sampleID", 5, self.__api.sample))
+        return(Samples(self._eLABJournalObject__api, "Samples", "/api/v1/storage/"+urllib.parse.quote(str(self.id()))+"/samples", request, "sampleID", 5, self._eLABJournalObject__api.sample))
           
      
     

@@ -2,15 +2,16 @@ import pandas as pd
 import math
 import ipywidgets as widgets
 import warnings
+import graphviz
 from IPython.display import display, clear_output
 from pandas.io.json import json_normalize
 
 
-class pager:
+class eLABJournalPager:
 
     def __init__(self, api, title, location, request, index, records, item_handler=None):        
         """
-        Internal use only: initialize pager object: general object to browse items
+        Internal use only: initialize pager object: general object to browse items.
         
         Parameters
         ----------
@@ -39,6 +40,7 @@ class pager:
         self.__records = records
         self.__item_handler = item_handler
         self.__page = 0
+        self.__list_response = False
         self._reset()
         #get first page        
         self._set_page(self.__page, records) 
@@ -50,7 +52,7 @@ class pager:
             
     def _reset(self):
         """
-        Internal use only: reset pager object
+        Internal use only: reset pager object.
         """ 
         self.__page = 0
         self.__maxRecords = 0
@@ -60,24 +62,27 @@ class pager:
         
     def __repr__(self):
         """
-        Internal use only: description pager object
+        Internal use only: description pager object.
         """ 
-        description = self.__title
-        return(description+" ("+str(self.__totalRecords)+"x)")        
+        text = str(self.__title)+" ("+str(self.__totalRecords)+"x)"
+        text += self.__api._create_methods(self)                                    
+        return(text)
+              
         
     def _set_page(self, page, records):
         """
-        Internal use only: change page
+        Internal use only: change page.
         """ 
         #define request
         request = self.__request
-        request["$page"] = page
-        request["$records"] = records
-        rp = self.__api.request(self.__location,"get",request)
+        if not self.__list_response:
+            request["$page"] = page
+            request["$records"] = records
+        rp = self.__api._request(self.__location,"get",request)
         #check and get
         if rp==None:
             self._reset()
-        elif type(rp) == dict:
+        elif isinstance(rp,dict):
             if "maxRecords" in rp.keys():
                 self.__maxRecords = rp["maxRecords"]
             else:
@@ -98,12 +103,28 @@ class pager:
                     self.__data = self._filter_page(self.__data.set_index(self.__index))                
             else:
                 raise Exception("unexpected response, no data")                    
+        elif isinstance(rp,list):
+            self.__list_response = True
+            self.__maxRecords = records
+            self.__totalRecords = len(rp)
+            self.__page = page
+            self.__data = pd.DataFrame(json_normalize(rp))
+            if len(self.__data)>0:
+                self.__data = self._filter_page(self.__data.set_index(self.__index))
+            start = self.__maxRecords*self.__page
+            if start<len(self.__data):
+                self.__data = self.__data.iloc[start:]
+            elif start>0:
+                self.__data = pd.DataFrame() 
+            if len(self.__data)>self.__maxRecords:
+                self.__data = self.__data.head(self.__maxRecords) 
+            self.__pages = math.ceil(self.__totalRecords/self.__maxRecords)                            
         else:
-            raise Exception("unexpected response, no dict")  
+            raise Exception("unexpected response")  
             
     def _filter_page(self, data):
         """
-        Internal use only: filter page (flatten specific json)
+        Internal use only: filter page (flatten specific json).
         """ 
         dropList = set()
         numberTypes = {}
@@ -144,13 +165,36 @@ class pager:
             data[numberType] = data[numberType].fillna(0).astype(numberTypes[numberType])        
         if len(dropList)>0:                       
             data = data.drop(columns=list(dropList))
-        return(data)                    
-                   
+        return(data)  
+        
+    def visualize(self):
+        """
+        Show visualization.
+        """         
+        g = graphviz.Digraph()
+        with g.subgraph(name="cluster_pager") as g_pager:
+            g_pager.attr(tooltip=str(self.__title), label=str(self.__title), style="filled", color="black", fillcolor="#067172", fontcolor="white")
+            g_pager.node("pager",str(self.__totalRecords)+" item"+("s" if (self.__totalRecords!=1) else ""), {"tooltip": "number of objects", "style": "filled", "color": "#0B3B52", "fontcolor": "white", "shape": "rect"})        
+        return(g)  
+        
+    def name(self):
+        """
+        Get the name.
+        """
+        return(self.__title)
+        
+    def title(self):
+        """
+        Get the title.
+        """
+        text = str(self.__title)+" ("+str(self.__totalRecords)+"x)"
+        return(text)           
     
     def first(self, single=False):  
         """
-        Get the first item (if exists), but raise an exception if `single`
-        is set to True and the object describes multiple items.
+        Get the first item (if exists).
+        Raise an exception if `single` is set to True and the object describes 
+        multiple items.
         
         If an `item_handler` is defined, this will be
         used to return an object. Otherwise the index for the first
@@ -212,10 +256,10 @@ class pager:
             request = self.__request
             request["$page"] = page
             request["$records"] = records
-            rp = self.__api.request(self.__location,"get",request)
+            rp = self.__api._request(self.__location,"get",request)
             if rp==None:
                 return None;
-            elif type(rp) == dict:
+            elif isinstance(rp,dict):
                 if "maxRecords" in rp.keys():
                     maxRecords = rp["maxRecords"]
                 else:
@@ -229,7 +273,26 @@ class pager:
                 else:
                     raise Exception("unexpected response, no currentPage")
                 pages = math.ceil(totalRecords/maxRecords)  
-            if "data" in rp.keys():                        
+            if self.__list_response:    
+                data = pd.DataFrame(json_normalize(rp)) 
+                #only if data
+                if len(data)>0:
+                    data = data.set_index(self.__index) 
+                    data = self._filter_page(data)
+                    #filter columns
+                    if not(fields==None):
+                        intersectList = [x for x in fields if x in data.columns.values]
+                        dropList = [x for x in data.columns.values if x not in intersectList]
+                        data = data.drop(columns=dropList)[intersectList]
+                    if maximum is None:    
+                        dataSets.append(data)
+                    else:
+                        if len(data) <= maximum:
+                            dataSets.append(data)
+                        else:
+                            dataSets.append(data.head(maximum-len(data)))                              
+                break                
+            elif "data" in rp.keys():                        
                 data = pd.DataFrame(json_normalize(rp["data"]))                
                 #only if data
                 if len(data)>0:
