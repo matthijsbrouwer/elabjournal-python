@@ -772,14 +772,14 @@ class api:
         else:
             return(None)
             
-    def set_group(self, group_id):
+    def set_group(self, id):
         """
-        Set the active group to the provided group_id.
+        Set the active group to the provided id.
         """
-        if isinstance(group_id,numbers.Integral) | isinstance(group_id,str):
-            self._request("/api/v1/groups/active", "put", str(group_id), headers={"Content-Type": "application/json"})            
-        elif isinstance(group_id,Group):
-            self._request("/api/v1/groups/active", "put", str(group_id.id()), headers={"Content-Type": "application/json"})  
+        if isinstance(id,numbers.Integral) | isinstance(id,str):
+            self._request("/api/v1/groups/active", "put", str(id), headers={"Content-Type": "application/json"})            
+        elif isinstance(id,Group):
+            self._request("/api/v1/groups/active", "put", str(id.id()), headers={"Content-Type": "application/json"})  
         else:
             raise Exception("incorrect call")                                 
     

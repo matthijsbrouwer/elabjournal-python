@@ -1,11 +1,13 @@
 from .eLABJournalObject import * 
 from .Sections import *
+from .Section import *
 
 import pandas as pd
-import matplotlib
+import matplotlib.figure
 import urllib.parse
 import numbers
 import html
+import openpyxl
 from IPython.core.display import HTML
 
 class Experiment(eLABJournalObject):
@@ -160,7 +162,7 @@ class Experiment(eLABJournalObject):
         """
         if data is None:
             return(None)
-        elif type(data) == section:
+        elif isinstance(data, Section):
             sectionType = data.type()
             if title==None:
                 sectionHeader = data.title()
@@ -172,14 +174,17 @@ class Experiment(eLABJournalObject):
                 sectionHeader = "New section"
             else:
                 sectionHeader = title
-            if type(data) == pd.DataFrame:
+            if isinstance(data, pd.DataFrame):
                 sectionType = "DATATABLE"
                 sectionData = data
-            elif type(data) == matplotlib.figure.Figure:    
+            elif isinstance(data, matplotlib.figure.Figure):    
                 sectionType = "CANVAS"
                 sectionData = data
-            elif type(data) == PngImagePlugin.PngImageFile:   
+            elif isinstance(data, PngImagePlugin.PngImageFile):   
                 sectionType = "CANVAS"
+                sectionData = data
+            elif isinstance(data, openpyxl.workbook.workbook.Workbook):   
+                sectionType = "EXCEL"
                 sectionData = data
             else:
                 raise Exception("no (valid) section data")

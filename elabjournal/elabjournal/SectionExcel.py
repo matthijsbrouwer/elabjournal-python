@@ -41,18 +41,16 @@ class SectionExcel(Section):
         Get the content of this section
         """ 
         rp = self._eLABJournalObject__api._request("/api/v1/experiments/sections/"+urllib.parse.quote(str(self.id()))+"/excel", "get", {}, stream=True)
-        wb = xlrd.open_workbook(file_contents=rp.content)
-        xlsx = pd.ExcelFile(wb, engine="xlrd")                        
-        return(xlsx)
+        wb = openpyxl.load_workbook(BytesIO(rp.content))
+        return(wb)
             
     def set(self, data):
         """
         Set or update the content of this section
         """ 
-        if type(data) == pd.DataFrame:
+        if type(data) == openpyxl.workbook.workbook.Workbook:
             location = "/api/v1/experiments/sections/"+urllib.parse.quote(str(self.id()))+"/excel"
-            raise Exception("section type EXCEL not (yet) supported")
-            #rp = self._eLABJournalObject__api._request(location, "put", dump)                
+            rp = self._eLABJournalObject__api._request(location, "put", openpyxl.writer.excel.save_virtual_workbook(data), headers={"Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})                
         else:
-            raise Exception("data type not supported to set "+self.__sectionType) 
+            raise Exception("data type not supported for "+self.type()) 
                     

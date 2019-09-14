@@ -3,7 +3,7 @@ from .eLABJournalObject import *
 from .SectionMetas import *
 
 import json
-import xlrd
+import openpyxl
 import pandas as pd
 import matplotlib
 import urllib.parse
@@ -13,7 +13,6 @@ import html
 from PIL import Image, PngImagePlugin
 from IPython.core.display import HTML
 from io import BytesIO
-
 
 class Section(eLABJournalObject):
 
@@ -119,15 +118,25 @@ class Section(eLABJournalObject):
         """ 
         return(self._eLABJournalObject__api.experiment(self.__experimentID))
         
-    def meta(self, name):
+    def meta(self, name, value=None):
         """
-        Get meta item (meta) by name for the section.
+        Get or set meta item (meta) by name for the section.
         """
-        rp = self._eLABJournalObject__api._request("/api/v1/experiments/sections/"+urllib.parse.quote(str(self.id()))+"/meta/"+urllib.parse.quote(str(name)), "get", {})
-        if not(rp==None) & (type(rp) == dict):
-            return(rp)                                                 
+        if value==None:
+            rp = self._eLABJournalObject__api._request("/api/v1/experiments/sections/"+urllib.parse.quote(str(self.id()))+"/meta/"+urllib.parse.quote(str(name)), "get", {}, show_messages=False)
+            if not(rp==None) & (type(rp) == dict):
+                if "name" in rp.keys() and rp["name"]==name:
+                    return(rp)
+                else:
+                    return(None)                                                     
+            else:
+                return(None)
+        elif type(value)==str:
+            data = {"name": name, "val": value}
+            rp = self._eLABJournalObject__api._request("/api/v1/experiments/sections/"+urllib.parse.quote(str(self.id()))+"/meta", "post", data)
+            
         else:
-            return(None)
+            raise Exception("value must be string")     
    
         
     def metas(self, *args, **kwargs):
