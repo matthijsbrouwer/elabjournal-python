@@ -19,7 +19,9 @@ setup(
         "xlrd",
         "matplotlib",
         "Pillow",
-        "ipywidgets"
+        "ipywidgets",
+        "graphviz",
+        "openpyxl"
     ],
     classifiers=[
         "Framework :: Jupyter",
