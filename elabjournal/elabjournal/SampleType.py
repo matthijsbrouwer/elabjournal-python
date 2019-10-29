@@ -16,6 +16,12 @@ class SampleType(eLABJournalObject):
         """
         return self._eLABJournalObject__api.sample_type_metas(self.id())               
     
+    def meta(self, sample_type_meta_id):
+        """
+        Get sample type meta object with provided sample_type_meta_id.
+        """
+        return self._eLABJournalObject__api.sample_type_meta(self.id(), sample_type_meta_id)               
+    
     def visualize(self):
         """
         Create visualization.

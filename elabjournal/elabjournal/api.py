@@ -423,7 +423,7 @@ class api:
             else:    
                 return(None)  
         else:
-            raise Exception("nothing to update")           
+            raise Exception("nothing to update")                                   
         
     def delete_sample(self, *args, **kwargs):
         """
@@ -481,11 +481,199 @@ class api:
             rp = self._request("/api/v1/samples/"+urllib.parse.quote(str(sample_id))+"/meta/"+urllib.parse.quote(str(sample_meta_id)), "get", {}) 
             #check and get
             if not(rp==None) & (type(rp) == dict):
-                return(SampleMeta(self,rp))                                                 
+                return(SampleMeta(self,sample_id,rp))                                                 
             else:
                 return(None)                   
         else:
             raise Exception("incorrect call")
+            
+    def create_sample_meta(self, *args, **kwargs):
+        """
+        Create the sample meta
+        
+        Parameters (object)
+        ----------------------
+        class: parser
+            Pass the result of the first() method on this object instead
+        class: sample
+            Pass the sampleID of this object  
+        class: sample_meta
+            Pass the sampleMetaID of this object      
+                
+        
+        Parameters (key/value)
+        ----------------------
+        sampleID: str, required
+            ID of the sample
+        sampleIDs: str, optional
+            Comma separated list of (linked) sampleIDs    
+        fileIDs: str, optional
+            Comma separated list of (linked) fileIDs    
+        key: str, optional
+            Key for the meta item
+        value: str, optional
+            Value for the meta item   
+        sampleTypeMetaID: str, optional
+            ID of the sampleType meta item                         
+        
+        """ 
+        request = {}
+        required = {}
+        kwargs_obligatory = ["sampleID", "key","sampleDataType"]
+        kwargs_keys = ["value", "sampleTypeMetaID"]
+        kwargs_explode_keys = ["sampleIDs","fileIDs"]
+        if args is not None:
+            for arg in args:
+                check_arg = arg
+                if isinstance(check_arg,eLABJournalPager):
+                    check_arg = arg.first(True)
+                if isinstance(check_arg,Sample):
+                    request["sampleID"] = check_arg.id()
+                else:    
+                    raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
+        if kwargs is not None:
+            for key, value in kwargs.items():
+                if key in kwargs_obligatory:
+                    request[key] = value
+                elif key in kwargs_keys:
+                    request[key] = value
+                elif key in kwargs_explode_keys:
+                    request[key] = str(value).split(",")
+                else:
+                    raise Exception("unsupported key '"+key+"'") 
+        for key in kwargs_obligatory:
+            if key not in request:
+                raise Exception("'"+key+"' must be provided")                                              
+        #fix request
+        sampleID = request["sampleID"]
+        del request["sampleID"]  
+        rp = self._request("/api/v1/samples/"+urllib.parse.quote(str(sampleID))+"/meta", "post", request)
+        try:
+            sampleMetaID = int(rp)
+            if sampleMetaID>0:
+                return(self.sample_meta(sampleID, sampleMetaID))
+            else:
+                raise Exception("couldn't create meta")  
+        except:
+            print(rp)
+            raise Exception("couldn't create meta")                                          
+                             
+    def update_sample_meta(self, *args, **kwargs):
+        """
+        Update the sample meta.
+        
+        Parameters (object)
+        ----------------------
+        class: parser
+            Pass the result of the first() method on this object instead
+        class: sample
+            Pass the sampleID of this object  
+        class: sample_meta
+            Pass the sampleMetaID of this object      
+                
+        
+        Parameters (key/value)
+        ----------------------
+        sampleID: str, required
+            ID of the sample
+        sampleMetaID: str, required
+            ID of the sample_meta
+        sampleIDs: str, optional
+            Comma separated list of (linked) sampleIDs    
+        fileIDs: str, optional
+            Comma separated list of (linked) fileIDs    
+        key: str, required
+            Key for the meta item
+        value: str, optional
+            Value for the meta item    
+        sampleMetaID: str, optional
+            ID of the sampleType meta item                               
+        
+        """ 
+        request = {}
+        required = {}
+        kwargs_obligatory = ["sampleID", "sampleMetaID"]
+        kwargs_keys = ["key", "value", "sampleTypeMetaID"]
+        kwargs_explode_keys = ["sampleIDs","fileIDs"]
+        if args is not None:
+            for arg in args:
+                check_arg = arg
+                if isinstance(check_arg,eLABJournalPager):
+                    check_arg = arg.first(True)
+                if isinstance(check_arg,Sample):
+                    request["sampleID"] = check_arg.id()
+                elif isinstance(check_arg,SampleMeta):
+                    request["sampleMetaID"] = check_arg.id()    
+                else:    
+                    raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
+        if kwargs is not None:
+            for key, value in kwargs.items():
+                if key in kwargs_obligatory:
+                    required[key] = value
+                elif key in kwargs_keys:
+                    request[key] = value
+                elif key in kwargs_explode_keys:
+                    request[key] = str(value).split(",")
+                else:
+                    raise Exception("unsupported key '"+key+"'") 
+        for key in kwargs_obligatory:
+            if key not in required:
+                raise Exception("'"+key+"' must be provided")                                
+        if(len(request)>0):           
+            rp = self._request("/api/v1/samples/"+urllib.parse.quote(str(required["sampleID"]))+"/meta/"+urllib.parse.quote(str(required["sampleMetaID"])), "patch", request)
+            return(rp)              
+        else:
+            raise Exception("nothing to update")                              
+                             
+    def delete_sample_meta(self, *args, **kwargs):
+        """
+        Delete the sample meta.
+        
+        Parameters (object)
+        ----------------------
+        class: parser
+            Pass the result of the first() method on this object instead
+        class: sample
+            Pass the sampleID of this object  
+        class: sample_meta
+            Pass the sampleMetaID of this object          
+        
+        Parameters (key/value)
+        ----------------------
+        sampleID: str, required
+            ID of the sample
+        key : str, required
+            Key for the meta item
+        value : str, optional
+            Value for the meta item                        
+        
+        """ 
+        required = {}
+        kwargs_obligatory = ["sampleID", "sampleMetaID"]
+        if args is not None:
+            for arg in args:
+                check_arg = arg
+                if isinstance(check_arg,eLABJournalPager):
+                    check_arg = arg.first(True)
+                if isinstance(check_arg,Sample):
+                    required["sampleID"] = check_arg.id()
+                elif isinstance(check_arg,SampleMeta):
+                    required["sampleMetaID"] = check_arg.id()    
+                elif isinstance(check_arg,int):
+                    required["sampleMetaID"] = check_arg    
+                else:    
+                    raise Exception("unsupported object '"+str(type(check_arg))+"'")                 
+        if kwargs is not None:
+            for key, value in kwargs.items():
+                if key in kwargs_obligatory:
+                    required[key] = value
+                else:
+                    raise Exception("unsupported key '"+key+"'") 
+        for key in kwargs_obligatory:
+            if key not in required:
+                raise Exception("'"+key+"' must be provided")                                
+        rp = self._request("/api/v1/samples/"+urllib.parse.quote(str(required["sampleID"]))+"/meta/"+urllib.parse.quote(str(required["sampleMetaID"])), "delete", {})
+        return(rp)                              
                              
     def sample_series(self, *args, **kwargs):
         """

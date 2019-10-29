@@ -151,6 +151,33 @@ class Sample(eLABJournalObject):
         """
         return self._eLABJournalObject__api.sample_meta(self.id(), sample_meta_id)  
         
+    def update_meta(self, *args, **kwargs):
+        """
+        Update the meta.
+        
+        See update_sample_meta on the api for the available/allowed parameters  
+        """
+        kwargs["sampleID"] = self.id()
+        return self._eLABJournalObject__api.update_sample_meta(*list(args), **dict(kwargs))
+        
+    def create_meta(self, *args, **kwargs):
+        """
+        Create meta.
+        
+        See create_sample_meta on the api for the available/allowed parameters  
+        """
+        kwargs["sampleID"] = self.id()
+        return self._eLABJournalObject__api.create_sample_meta(*list(args), **dict(kwargs))
+        
+    def delete_meta(self, *args, **kwargs):
+        """
+        Delete meta.
+        
+        See delete_sample_meta on the api for the available/allowed parameters  
+        """
+        kwargs["sampleID"] = self.id()
+        return self._eLABJournalObject__api.delete_sample_meta(self.id(), *list(args), **dict(kwargs))
+        
     def update(self, *args, **kwargs):
         """
         Update the sample.
@@ -165,4 +192,5 @@ class Sample(eLABJournalObject):
             self.__init__(self._eLABJournalObject__api,rp)                                               
         else:
             raise Exception("couldn't perform selfupdate")
+                          
     
