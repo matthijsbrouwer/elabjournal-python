@@ -11,6 +11,30 @@ pip install --upgrade elabjournal
 See [jupyter notebooks](https://github.com/matthijsbrouwer/jupyter-elabjournal) for
 a demonstration of functionality.
 
+## Obtaining a REST API key
+
+The first time an elabjournal object is created from your system, a REST API key has to be entered.
+
+To obtain such a personal key
+
+- login into http://www.elabjournal.com
+- go to 'Apps & Connections'
+- and click the 'Manage authentication' link
+
+Enter a description (for example 'Jupyter') and generate the token. Only the part behind the semicolumn is needed. This key can be entered when a REST API key is asked for.
+
+The key is stored by the elabjournal package in your systems keyring, and therefore the next time you create an elabjournal object, providing this key is not necessary. From the eLABJournal website, you can always revoke a REST API key if necessary.
+
+If you want to remove the key from your systems keyring, use
+
+```bash
+elabjournal.reset_key()
+```
+
+## Example
+
+Basic example, see [jupyter notebooks](https://github.com/matthijsbrouwer/jupyter-elabjournal) for
+a better demonstration of functionality.
 
 ```bash
 >>> from elabjournal import elabjournal
