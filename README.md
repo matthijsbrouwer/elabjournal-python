@@ -27,7 +27,7 @@ The key is stored by the elabjournal package in your systems keyring, and theref
 
 If you want to remove the key from your systems keyring, use
 
-```bash
+```python
 elabjournal.reset_key()
 ```
 
@@ -36,7 +36,7 @@ elabjournal.reset_key()
 Basic example, see [jupyter notebooks](https://github.com/matthijsbrouwer/jupyter-elabjournal) for
 a better demonstration of functionality.
 
-```bash
+```python
 >>> from elabjournal import elabjournal
 >>> eLAB = elabjournal.api()
 Welcome Matthijs Brouwer
