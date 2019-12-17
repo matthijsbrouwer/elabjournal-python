@@ -59,7 +59,8 @@ class api:
         """        
         self.__key = None
         self.__timeout = 180
-        self.__url = "https://www.elabjournal.com"
+        self.__url = None
+        self.__defaultUrl = "https://www.elabjournal.com"
         self.__user = None
         self.__version__ = _version.__version__
         
@@ -67,14 +68,22 @@ class api:
             if key==None:            
                 return(False)
             elif (type(key) == str) & (len(key)>0):
-                #filter input                
-                key = key.split(";",1)[-1].strip()
+                #filter input
+                if ";" in key:
+                    key_url = "https://"+key.split(";",1)[0].strip()                    
+                    key_key = key.split(";",1)[-1].strip()
+                else:
+                    key_url = self.__defaultUrl
+                    key_key = key.split(";",1)[-1].strip()                                  
                 try:
-                    rp = self._request("/api/v1/auth/user","get",{"body":{}},key)                   
+                    rp = self._request(key_url+"/api/v1/auth/user","get",{"body":{}},key_key)                   
                     if not(rp==None) & ("user" in rp.keys()):
-                        self.__key = key
+                        self.__url = key_url
+                        self.__key = key_key
                         self.__user = User(self, rp["user"])
                         welcomeText = "Welcome "+self.__user.name() + "\nPackage 'elabjournal', version '"+str(self.__version__)+"'"                     
+                        if key_url != self.__defaultUrl:
+                            welcomeText = welcomeText + "\nConnected to '" +str(key_url.split("://",1)[-1].strip()) + "'"
                         group = self.group()
                         if group is not None:
                             welcomeText = welcomeText + "\nYour active group is '" + str(group.name()) + "' (" + str(group.id()) + ")" 

@@ -21,9 +21,9 @@ To obtain such a personal key
 - go to 'Apps & Connections'
 - and click the 'Manage authentication' link
 
-Enter a description (for example 'Jupyter') and generate the token. Only the part behind the semicolumn is needed. This key can be entered when a REST API key is asked for.
+Enter a description (for example 'Jupyter') and generate the token. This key can be entered when a REST API key is asked for.
 
-The key is stored by the elabjournal package in your systems keyring, and therefore the next time you create an elabjournal object, providing this key is not necessary. From the eLABJournal website, you can always revoke a REST API key if necessary.
+The key is stored by the elabjournal package in your systems keyring, and therefore the next time you create an elabjournal object, providing this key is not necessary. From the eLABJournal website, you can always revoke a REST API key if necessary. 
 
 If you want to remove the key from your systems keyring, use
 
@@ -40,10 +40,11 @@ a better demonstration of functionality.
 >>> from elabjournal import elabjournal
 >>> eLAB = elabjournal.api()
 Welcome Matthijs Brouwer
-Package 'elabjournal', version '0.0.15'
-Your active group is 'Testgroup' (6727)
+Package 'elabjournal', version '0.0.16'
+Connected to 'wur.elabjournal.com'
+Your active group is 'Testgroup Matthijs' (8738)
 >>> eLAB
-eLABJournal API object - version 0.0.15 - authenticated as Matthijs Brouwer
+eLABJournal API object - version 0.0.16 - authenticated as Matthijs Brouwer
 |
 |  Available methods, use help() on this object for more detailed information:
 |
