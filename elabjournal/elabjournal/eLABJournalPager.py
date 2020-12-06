@@ -4,7 +4,6 @@ import ipywidgets as widgets
 import warnings
 import graphviz
 from IPython.display import display, clear_output
-from pandas.io.json import json_normalize
 
 
 class eLABJournalPager:
@@ -98,7 +97,7 @@ class eLABJournalPager:
             self.__pages = math.ceil(self.__totalRecords/self.__maxRecords)  
             if "data" in rp.keys():                        
                 self.__page = page
-                self.__data = pd.DataFrame(json_normalize(rp["data"]))
+                self.__data = pd.DataFrame(pd.json_normalize(rp["data"]))
                 if len(self.__data)>0:
                     self.__data = self._filter_page(self.__data.set_index(self.__index))                
             else:
@@ -108,7 +107,7 @@ class eLABJournalPager:
             self.__maxRecords = records
             self.__totalRecords = len(rp)
             self.__page = page
-            self.__data = pd.DataFrame(json_normalize(rp))
+            self.__data = pd.DataFrame(pd.json_normalize(rp))
             if len(self.__data)>0:
                 self.__data = self._filter_page(self.__data.set_index(self.__index))
             start = self.__maxRecords*self.__page
@@ -274,7 +273,7 @@ class eLABJournalPager:
                     raise Exception("unexpected response, no currentPage")
                 pages = math.ceil(totalRecords/maxRecords)  
             if self.__list_response:    
-                data = pd.DataFrame(json_normalize(rp)) 
+                data = pd.DataFrame(pd.json_normalize(rp)) 
                 #only if data
                 if len(data)>0:
                     data = data.set_index(self.__index) 
@@ -293,7 +292,7 @@ class eLABJournalPager:
                             dataSets.append(data.head(maximum-len(data)))                              
                 break                
             elif "data" in rp.keys():                        
-                data = pd.DataFrame(json_normalize(rp["data"]))                
+                data = pd.DataFrame(pd.json_normalize(rp["data"]))                
                 #only if data
                 if len(data)>0:
                     data = data.set_index(self.__index) 
