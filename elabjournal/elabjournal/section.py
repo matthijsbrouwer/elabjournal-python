@@ -117,6 +117,59 @@ class Section(eLABJournalObject):
         Get the experiment containing this section.
         """ 
         return(self._eLABJournalObject__api.experiment(self.__experimentID))
+    
+    def archive(self):
+        """
+        Archive this section.
+        """ 
+        rp = self._eLABJournalObject__api._request("/api/v1/experiments/sections/"+urllib.parse.quote(str(self.id())), 
+                                                   "delete", {})
+        
+    def restore(self):
+        """
+        Archive this section.
+        """ 
+        rp = self._eLABJournalObject__api._request("/api/v1/experiments/sections/"+
+                                                   urllib.parse.quote(str(self.id()))+"/restore", 
+                                                   "post", {})
+        
+    def position(self, position):
+        """
+        Change position for this section.
+        """ 
+        if type(position)==int:
+            rp = self._eLABJournalObject__api._request("/api/v1/experiments/sections/"+
+                                                   urllib.parse.quote(str(self.id()))+"/position", 
+                                                   "put", position)
+        else:
+            raise Exception("position must be an integer")
+        
+    def locked(self):
+        """
+        Check lock for this section.
+        """ 
+        rp = self._eLABJournalObject__api._request("/api/v1/experiments/sections/"+
+                                                   urllib.parse.quote(str(self.id()))+"/lock", 
+                                                   "get", {})
+        return rp
+        
+    def lock(self):
+        """
+        Try to set a lock for this section.
+        """ 
+        rp = self._eLABJournalObject__api._request("/api/v1/experiments/sections/"+
+                                                   urllib.parse.quote(str(self.id()))+"/lock", 
+                                                   "put", {})
+        return rp
+        
+    def unlock(self):
+        """
+        Try to set a lock for this section.
+        """ 
+        rp = self._eLABJournalObject__api._request("/api/v1/experiments/sections/"+
+                                                   urllib.parse.quote(str(self.id()))+"/lock", 
+                                                   "delete", {})
+        return rp
         
     def meta(self, name, value=None):
         """

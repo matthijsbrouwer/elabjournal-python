@@ -19,6 +19,7 @@ from .SampleSeries import *
 from .SamplesAndSeries import *
 from .Section import *
 from .SectionParagraph import *
+from .SectionComment import *
 from .SectionProcedure import *
 from .SectionDatatable import *
 from .SectionCanvas import *
@@ -1356,6 +1357,8 @@ class api:
                 section_type = str(rp["sectionType"])
                 if section_type == "PARAGRAPH":
                     return(SectionParagraph(self,rp))
+                elif section_type == "COMMENT":
+                    return(SectionComment(self,rp))
                 elif section_type == "PROCEDURE":
                     return(SectionProcedure(self,rp))
                 elif section_type == "DATATABLE":
@@ -1403,7 +1406,7 @@ class api:
                 elif isinstance(request,str):
                     request_headers.update({"Content-Type": "application/json"})
                     data = request
-                elif isinstance(request,dict):
+                elif isinstance(request,dict) | isinstance(request,int):
                     request_headers.update({"Content-Type": "application/json"})
                     data = json.dumps(request)
                 else:
@@ -1412,6 +1415,9 @@ class api:
             elif method=="put":    
                 if isinstance(request,str) | isinstance(request,bytes):
                     data = request
+                elif isinstance(request,dict) | isinstance(request,int):
+                    request_headers.update({"Content-Type": "application/json"})
+                    data = json.dumps(request)
                 else:
                     raise Exception("unsupported type of request") 
                 response = requests.put(request_location, data=data, timeout=self.__timeout, headers=request_headers, stream=stream)                

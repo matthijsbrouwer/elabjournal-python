@@ -156,7 +156,7 @@ class Experiment(eLABJournalObject):
         else:
             raise Exception("incorrect call")    
     
-    def add(self, data, title=None, order=None):
+    def add(self, data, title=None, order=None, type=None):
         """
         Add a new section to this experiment.
         """
@@ -176,15 +176,34 @@ class Experiment(eLABJournalObject):
                 sectionHeader = title
             if isinstance(data, pd.DataFrame):
                 sectionType = "DATATABLE"
+                if not (type==None or type==sectionType):
+                    raise Exception("incorrect datatype, expected "+sectionType)
                 sectionData = data
             elif isinstance(data, matplotlib.figure.Figure):    
                 sectionType = "CANVAS"
+                if not (type==None or type==sectionType):
+                    raise Exception("incorrect datatype, expected "+sectionType)
                 sectionData = data
             elif isinstance(data, PngImagePlugin.PngImageFile):   
                 sectionType = "CANVAS"
+                if not (type==None or type==sectionType):
+                    raise Exception("incorrect datatype, expected "+sectionType)
                 sectionData = data
             elif isinstance(data, openpyxl.workbook.workbook.Workbook):   
                 sectionType = "EXCEL"
+                if not (type==None or type==sectionType):
+                    raise Exception("incorrect datatype, expected "+sectionType)
+                sectionData = data
+            elif isinstance(data, str):   
+                if not type==None:
+                    if type=="PARAGRAPH":
+                        sectionType="PARAGRAPH"
+                    elif type=="COMMENT":
+                        sectionType="COMMENT"
+                    else:
+                        raise Exception("incorrect datatype, expected PARAGRAPH or COMMENT")
+                else:
+                    sectionType="PARAGRAPH"
                 sectionData = data
             else:
                 raise Exception("no (valid) section data")
@@ -198,6 +217,8 @@ class Experiment(eLABJournalObject):
         new_section.set(sectionData)
         #return new section
         return(new_section)
+    
+    
         
             
             

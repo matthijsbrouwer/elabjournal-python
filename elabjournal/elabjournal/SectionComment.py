@@ -1,7 +1,7 @@
 from .Section import * 
 
 
-class SectionParagraph(Section):
+class SectionComment(Section):
 
     def __init__(self, api, data):        
         """
@@ -10,7 +10,7 @@ class SectionParagraph(Section):
         if (not(data==None) & (type(data) == dict) & 
             ("sectionType" in data.keys()) 
            ):
-             if data["sectionType"]=="PARAGRAPH":
+             if data["sectionType"]=="COMMENT":
                  super().__init__(api, data)
              else:   
                  raise Exception("no paragraph")                                         
