@@ -1334,7 +1334,7 @@ class api:
                                 return(Experiment(self, dataItem))
                         page+=1
                         if page < maxPage:
-                            return(self.experiment(id,page))
+                            return(self._experiment(id,page))
                         else:        
                             return(None)               
                     else:   
